@@ -1,72 +1,172 @@
-"""Database helpers for the Rural Services System."""
+"""Database helpers for the Rural Services System.
+
+Supports both SQLite (local development) and PostgreSQL (production).
+The database type is auto-detected:
+- If DATABASE_URL environment variable is set → PostgreSQL
+- Otherwise → SQLite (local file)
+"""
 import os
-import sqlite3
 import json
 import threading
+import secrets
+import time
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Detect database type
+# Only use PostgreSQL if DATABASE_URL starts with postgres:// or postgresql://
+_raw_db_url = os.environ.get('DATABASE_URL', '')
+IS_POSTGRES = _raw_db_url.startswith('postgres://') or _raw_db_url.startswith('postgresql://')
+DATABASE_URL = _raw_db_url if IS_POSTGRES else ''
+
 DB_PATH = os.environ.get('RURAL_DB_PATH', os.path.join(os.path.dirname(__file__), 'rural.db'))
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.sql')
+SCHEMA_SQLITE_PATH = os.path.join(os.path.dirname(__file__), 'schema.sql')
+SCHEMA_PG_PATH = os.path.join(os.path.dirname(__file__), 'schema_pg.sql')
 
 _local = threading.local()
 
 
 def get_conn():
-    """Return a per-thread connection. Sets row_factory to dict-like."""
+    """Return a per-thread connection.
+    - PostgreSQL: psycopg2 connection with RealDictCursor
+    - SQLite: sqlite3 connection with Row factory
+    """
     if not hasattr(_local, 'conn'):
-        conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
-        conn.row_factory = sqlite3.Row
-        conn.execute('PRAGMA journal_mode=WAL;')
-        conn.execute('PRAGMA foreign_keys=ON;')
-        conn.execute('PRAGMA busy_timeout=5000;')
-        _local.conn = conn
+        if IS_POSTGRES:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            _local.conn = psycopg2.connect(DATABASE_URL)
+            _local.conn.autocommit = True
+            _local.conn.cursor_factory = RealDictCursor
+        else:
+            import sqlite3
+            _local.conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
+            _local.conn.row_factory = sqlite3.Row
+            _local.conn.execute('PRAGMA journal_mode=WAL;')
+            _local.conn.execute('PRAGMA foreign_keys=ON;')
+            _local.conn.execute('PRAGMA busy_timeout=5000;')
     return _local.conn
+
+
+def _convert_sql(sql):
+    """Convert SQLite-style ? placeholders to PostgreSQL %s placeholders."""
+    if IS_POSTGRES:
+        return sql.replace('?', '%s')
+    return sql
+
+
+def _exec(sql, params=None):
+    """Execute a single SQL statement. Returns cursor."""
+    conn = get_conn()
+    sql = _convert_sql(sql)
+    if IS_POSTGRES:
+        cur = conn.cursor()
+        cur.execute(sql, params or ())
+        return cur
+    else:
+        return conn.execute(sql, params or ())
+
+
+def _execmany(sql, seq_of_params):
+    """Execute many. Returns cursor."""
+    conn = get_conn()
+    sql = _convert_sql(sql)
+    if IS_POSTGRES:
+        cur = conn.cursor()
+        cur.executemany(sql, seq_of_params)
+        return cur
+    else:
+        return conn.executemany(sql, seq_of_params)
+
+
+def _execscript(sql_script):
+    """Execute a script (multiple statements). For schema initialization."""
+    conn = get_conn()
+    if IS_POSTGRES:
+        cur = conn.cursor()
+        # Split by semicolons and execute each statement
+        # Remove PRAGMA lines (PostgreSQL doesn't use them)
+        lines = sql_script.split('\n')
+        cleaned = []
+        for line in lines:
+            if line.strip().startswith('PRAGMA'):
+                continue
+            cleaned.append(line)
+        sql_script = '\n'.join(cleaned)
+        cur.execute(sql_script)
+        cur.close()
+    else:
+        conn.executescript(sql_script)
+
+
+def _fetchone(sql, params=None):
+    """Execute and fetch one row. Returns dict or None."""
+    cur = _exec(sql, params)
+    row = cur.fetchone()
+    if IS_POSTGRES:
+        cur.close()
+    return dict(row) if row else None
+
+
+def _fetchall(sql, params=None):
+    """Execute and fetch all rows. Returns list of dicts."""
+    cur = _exec(sql, params)
+    rows = cur.fetchall()
+    if IS_POSTGRES:
+        cur.close()
+    return [dict(r) for r in rows]
+
+
+def _fetchval(sql, params=None):
+    """Execute and fetch a single value (first column of first row)."""
+    row = _fetchone(sql, params)
+    if row:
+        return list(row.values())[0]
+    return None
 
 
 def init_db():
     """Initialize the database schema and seed default data."""
-    with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
+    schema_path = SCHEMA_PG_PATH if IS_POSTGRES else SCHEMA_SQLITE_PATH
+    with open(schema_path, 'r', encoding='utf-8') as f:
         schema_sql = f.read()
-    conn = get_conn()
-    conn.executescript(schema_sql)
+    _execscript(schema_sql)
     _seed_defaults()
-    print(f'[db] initialized at {DB_PATH}')
+    db_info = f'PostgreSQL: {DATABASE_URL[:50]}...' if IS_POSTGRES else f'SQLite at {DB_PATH}'
+    print(f'[db] initialized ({db_info})')
 
 
 def _seed_defaults():
     """Seed default roles, services, settings, and admin user if empty."""
-    conn = get_conn()
     # Roles
-    if conn.execute('SELECT COUNT(*) FROM roles').fetchone()[0] == 0:
-        conn.executemany(
-            'INSERT OR IGNORE INTO roles(id, name, active) VALUES (?,?,?)',
+    if _fetchval('SELECT COUNT(*) FROM roles') == 0:
+        _execmany(
+            'INSERT INTO roles(id, name, active) VALUES (?,?,?)',
             [('r1', 'کارشناس شهرستان', 1),
              ('r2', 'مسئول استانی', 1),
              ('r3', 'کارشناس کشوری', 1)]
         )
     # Services
-    if conn.execute('SELECT COUNT(*) FROM services').fetchone()[0] == 0:
-        conn.executemany(
-            'INSERT OR IGNORE INTO services(id, name, active) VALUES (?,?,?)',
+    if _fetchval('SELECT COUNT(*) FROM services') == 0:
+        _execmany(
+            'INSERT INTO services(id, name, active) VALUES (?,?,?)',
             [('s1', 'آبرسانی', 1),
              ('s2', 'اشتغال‌زایی', 1),
              ('s3', 'بهسازی راه', 1)]
         )
     # Provinces & counties - one default
-    if conn.execute('SELECT COUNT(*) FROM provinces').fetchone()[0] == 0:
-        conn.execute("INSERT OR IGNORE INTO provinces(id, name) VALUES ('p1','نمونه استان')")
-        conn.execute("INSERT OR IGNORE INTO counties(id, province_id, name) VALUES ('c1','p1','نمونه شهرستان')")
+    if _fetchval('SELECT COUNT(*) FROM provinces') == 0:
+        _exec("INSERT INTO provinces(id, name) VALUES ('p1','نمونه استان')")
+        _exec("INSERT INTO counties(id, province_id, name) VALUES ('c1','p1','نمونه شهرستان')")
     # Admin user
-    row = conn.execute("SELECT id FROM users WHERE username='admin'").fetchone()
+    row = _fetchone("SELECT id FROM users WHERE username='admin'")
     if not row:
-        conn.execute(
+        _exec(
             "INSERT INTO users(id, name, username, password_hash, role, province_id, county_id, active) VALUES (?,?,?,?,?,?,?,?)",
             ('u_admin_default', 'مدیر سامانه', 'admin', generate_password_hash('admin12345'), 'national', None, None, 1)
         )
     else:
-        # Ensure admin password is correct (in case of reseed)
-        conn.execute(
+        _exec(
             "UPDATE users SET password_hash=?, role='national', active=1, province_id=NULL, county_id=NULL WHERE username='admin'",
             (generate_password_hash('admin12345'),)
         )
@@ -94,7 +194,8 @@ def _seed_defaults():
         'evidenceEnabled': '1',
     }
     for k, v in default_settings.items():
-        conn.execute('INSERT OR IGNORE INTO settings(key, value) VALUES (?,?)', (k, v))
+        if not _fetchone('SELECT key FROM settings WHERE key=?', (k,)):
+            _exec('INSERT INTO settings(key, value) VALUES (?,?)', (k, v))
     # Core fields defaults
     default_core_fields = {
         'expertName': ('نام و نام خانوادگی کارشناس', 1),
@@ -111,8 +212,9 @@ def _seed_defaults():
         'evidence': ('لینک مستندات', 1),
     }
     for k, (label, visible) in default_core_fields.items():
-        conn.execute('INSERT OR IGNORE INTO core_fields(field_key, label, visible) VALUES (?,?,?)',
-                     (k, label, visible))
+        if not _fetchone('SELECT field_key FROM core_fields WHERE field_key=?', (k,)):
+            _exec('INSERT INTO core_fields(field_key, label, visible) VALUES (?,?,?)',
+                         (k, label, visible))
 
 
 # ----- helpers -----
@@ -142,7 +244,7 @@ def create_session(user_id):
     token = secrets.token_urlsafe(32)
     expires = (datetime.utcnow() + timedelta(hours=SESSION_TTL_HOURS)).isoformat() + 'Z'
     conn = get_conn()
-    conn.execute('INSERT INTO sessions(token, user_id, expires_at) VALUES (?,?,?)',
+    _exec('INSERT INTO sessions(token, user_id, expires_at) VALUES (?,?,?)',
                  (token, user_id, expires))
     return token
 
@@ -150,43 +252,40 @@ def create_session(user_id):
 def get_session_user(token):
     if not token:
         return None
-    conn = get_conn()
-    row = conn.execute(
+    row = _fetchone(
         'SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id '
-        'WHERE s.token=? AND s.expires_at > datetime("now") AND u.active=1',
+        'WHERE s.token=? AND s.expires_at > CURRENT_TIMESTAMP AND u.active=1',
         (token,)
-    ).fetchone()
+    )
     return to_dict(row)
 
 
 def destroy_session(token):
     if not token:
         return
-    conn = get_conn()
-    conn.execute('DELETE FROM sessions WHERE token=?', (token,))
+    _exec('DELETE FROM sessions WHERE token=?', (token,))
 
 
 def cleanup_sessions():
-    conn = get_conn()
-    conn.execute('DELETE FROM sessions WHERE expires_at <= datetime("now")')
+    _exec('DELETE FROM sessions WHERE expires_at <= CURRENT_TIMESTAMP')
 
 
 # ----- Users -----
 def list_users():
     conn = get_conn()
-    rows = conn.execute('SELECT id, name, username, role, province_id, county_id, active, created_at FROM users ORDER BY created_at').fetchall()
+    rows = _fetchall('SELECT id, name, username, role, province_id, county_id, active, created_at FROM users ORDER BY created_at')
     return rows_to_dicts(rows)
 
 
 def get_user_by_username(username):
     conn = get_conn()
-    row = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
+    row = _fetchone('SELECT * FROM users WHERE username=?', (username,))
     return to_dict(row)
 
 
 def get_user(user_id):
     conn = get_conn()
-    row = conn.execute('SELECT id, name, username, role, province_id, county_id, active FROM users WHERE id=?', (user_id,)).fetchone()
+    row = _fetchone('SELECT id, name, username, role, province_id, county_id, active FROM users WHERE id=?', (user_id,))
     return to_dict(row)
 
 
@@ -194,7 +293,7 @@ def create_user(name, username, password, role, province_id='', county_id=''):
     conn = get_conn()
     user_id = uid('u')
     pw_hash = generate_password_hash(password)
-    conn.execute(
+    _exec(
         'INSERT INTO users(id, name, username, password_hash, role, province_id, county_id, active) '
         'VALUES (?,?,?,?,?,?,?,1)',
         (user_id, name, username, pw_hash, role, province_id or None, county_id or None)
@@ -208,12 +307,12 @@ def update_user(user_id, name, username, password, role, province_id='', county_
     cid = county_id or None
     if password:
         pw_hash = generate_password_hash(password)
-        conn.execute(
+        _exec(
             'UPDATE users SET name=?, username=?, password_hash=?, role=?, province_id=?, county_id=?, active=? WHERE id=?',
             (name, username, pw_hash, role, pid, cid, active, user_id)
         )
     else:
-        conn.execute(
+        _exec(
             'UPDATE users SET name=?, username=?, role=?, province_id=?, county_id=?, active=? WHERE id=?',
             (name, username, role, pid, cid, active, user_id)
         )
@@ -223,13 +322,13 @@ def delete_user(user_id):
     if user_id == 'u_admin_default':
         return False  # protect admin
     conn = get_conn()
-    conn.execute('DELETE FROM users WHERE id=?', (user_id,))
+    _exec('DELETE FROM users WHERE id=?', (user_id,))
     return True
 
 
 def toggle_user(user_id, active):
     conn = get_conn()
-    conn.execute('UPDATE users SET active=? WHERE id=?', (1 if active else 0, user_id))
+    _exec('UPDATE users SET active=? WHERE id=?', (1 if active else 0, user_id))
 
 
 def verify_password(user, password):
@@ -245,27 +344,27 @@ def list_roles(active_only=False):
     if active_only:
         sql += ' WHERE active=1'
     sql += ' ORDER BY created_at'
-    return rows_to_dicts(conn.execute(sql).fetchall())
+    return rows_to_dicts(_fetchall(sql))
 
 
 def add_role(name):
     rid = uid('r')
     conn = get_conn()
-    conn.execute('INSERT INTO roles(id, name, active) VALUES (?,?,1)', (rid, name))
+    _exec('INSERT INTO roles(id, name, active) VALUES (?,?,1)', (rid, name))
     return rid
 
 
 def update_role(rid, name=None, active=None):
     conn = get_conn()
     if name is not None:
-        conn.execute('UPDATE roles SET name=? WHERE id=?', (name, rid))
+        _exec('UPDATE roles SET name=? WHERE id=?', (name, rid))
     if active is not None:
-        conn.execute('UPDATE roles SET active=? WHERE id=?', (1 if active else 0, rid))
+        _exec('UPDATE roles SET active=? WHERE id=?', (1 if active else 0, rid))
 
 
 def delete_role(rid):
     conn = get_conn()
-    conn.execute('DELETE FROM roles WHERE id=?', (rid,))
+    _exec('DELETE FROM roles WHERE id=?', (rid,))
 
 
 # ----- Services -----
@@ -275,36 +374,36 @@ def list_services(active_only=False):
     if active_only:
         sql += ' WHERE active=1'
     sql += ' ORDER BY created_at'
-    return rows_to_dicts(conn.execute(sql).fetchall())
+    return rows_to_dicts(_fetchall(sql))
 
 
 def add_service(name):
     sid = uid('s')
     conn = get_conn()
-    conn.execute('INSERT INTO services(id, name, active) VALUES (?,?,1)', (sid, name))
+    _exec('INSERT INTO services(id, name, active) VALUES (?,?,1)', (sid, name))
     return sid
 
 
 def update_service(sid, name=None, active=None):
     conn = get_conn()
     if name is not None:
-        conn.execute('UPDATE services SET name=? WHERE id=?', (name, sid))
+        _exec('UPDATE services SET name=? WHERE id=?', (name, sid))
     if active is not None:
-        conn.execute('UPDATE services SET active=? WHERE id=?', (1 if active else 0, sid))
+        _exec('UPDATE services SET active=? WHERE id=?', (1 if active else 0, sid))
 
 
 def delete_service(sid):
     conn = get_conn()
-    conn.execute('DELETE FROM services WHERE id=?', (sid,))
+    _exec('DELETE FROM services WHERE id=?', (sid,))
 
 
 # ----- Provinces & Counties -----
 def list_provinces():
     conn = get_conn()
-    rows = conn.execute('SELECT * FROM provinces ORDER BY name').fetchall()
+    rows = _fetchall('SELECT * FROM provinces ORDER BY name')
     provinces = rows_to_dicts(rows)
     for p in provinces:
-        counties = conn.execute('SELECT * FROM counties WHERE province_id=? ORDER BY name', (p['id'],)).fetchall()
+        counties = _fetchall('SELECT * FROM counties WHERE province_id=? ORDER BY name', (p['id'],))
         p['counties'] = rows_to_dicts(counties)
     return provinces
 
@@ -312,25 +411,25 @@ def list_provinces():
 def add_province(name):
     pid = uid('p')
     conn = get_conn()
-    conn.execute('INSERT INTO provinces(id, name) VALUES (?,?)', (pid, name))
+    _exec('INSERT INTO provinces(id, name) VALUES (?,?)', (pid, name))
     return pid
 
 
 def add_county(province_id, name):
     cid = uid('c')
     conn = get_conn()
-    conn.execute('INSERT INTO counties(id, province_id, name) VALUES (?,?,?)', (cid, province_id, name))
+    _exec('INSERT INTO counties(id, province_id, name) VALUES (?,?,?)', (cid, province_id, name))
     return cid
 
 
 def delete_province(pid):
     conn = get_conn()
-    conn.execute('DELETE FROM provinces WHERE id=?', (pid,))
+    _exec('DELETE FROM provinces WHERE id=?', (pid,))
 
 
 def delete_county(cid):
     conn = get_conn()
-    conn.execute('DELETE FROM counties WHERE id=?', (cid,))
+    _exec('DELETE FROM counties WHERE id=?', (cid,))
 
 
 # ----- Records -----
@@ -353,7 +452,7 @@ def list_records(filters=None):
     if where:
         sql += ' WHERE ' + ' AND '.join(where)
     sql += ' ORDER BY created_at DESC'
-    rows = conn.execute(sql, params).fetchall()
+    rows = _fetchall(sql, params)
     records = rows_to_dicts(rows)
     # Parse custom_values JSON
     for r in records:
@@ -370,7 +469,7 @@ def list_records(filters=None):
 
 def get_record(record_id):
     conn = get_conn()
-    row = conn.execute('SELECT * FROM records WHERE id=?', (record_id,)).fetchone()
+    row = _fetchone('SELECT * FROM records WHERE id=?', (record_id,))
     r = to_dict(row)
     if r:
         if r.get('custom_values'):
@@ -390,9 +489,9 @@ def save_record(data, user_id=None):
     rid = data.get('id') or uid('rec')
     custom_values = data.get('customValues', {}) or {}
     now = now_iso()
-    existing = conn.execute('SELECT id FROM records WHERE id=?', (rid,)).fetchone()
+    existing = _fetchone('SELECT id FROM records WHERE id=?', (rid,))
     if existing:
-        conn.execute('''
+        _exec('''
             UPDATE records SET
                 expert_name=?, role_id=?, role_name=?, org=?,
                 province_id=?, province_name=?,
@@ -425,7 +524,7 @@ def save_record(data, user_id=None):
             rid
         ))
     else:
-        conn.execute('''
+        _exec('''
             INSERT INTO records(
                 id, expert_name, role_id, role_name, org,
                 province_id, province_name,
@@ -463,37 +562,37 @@ def save_record(data, user_id=None):
 
 def delete_record(rid):
     conn = get_conn()
-    conn.execute('DELETE FROM records WHERE id=?', (rid,))
+    _exec('DELETE FROM records WHERE id=?', (rid,))
 
 
 # ----- Announcements -----
 def list_announcements():
     conn = get_conn()
-    return rows_to_dicts(conn.execute('SELECT * FROM announcements ORDER BY created_at DESC').fetchall())
+    return rows_to_dicts(_fetchall('SELECT * FROM announcements ORDER BY created_at DESC'))
 
 
 def add_announcement(text):
     aid = uid('an')
     conn = get_conn()
-    conn.execute('INSERT INTO announcements(id, text, active) VALUES (?,?,1)', (aid, text))
+    _exec('INSERT INTO announcements(id, text, active) VALUES (?,?,1)', (aid, text))
     return aid
 
 
 def delete_announcement(aid):
     conn = get_conn()
-    conn.execute('DELETE FROM announcements WHERE id=?', (aid,))
+    _exec('DELETE FROM announcements WHERE id=?', (aid,))
 
 
 # ----- Custom Fields -----
 def list_custom_fields():
     conn = get_conn()
-    return rows_to_dicts(conn.execute('SELECT * FROM custom_fields ORDER BY created_at').fetchall())
+    return rows_to_dicts(_fetchall('SELECT * FROM custom_fields ORDER BY created_at'))
 
 
 def add_custom_field(label, field_type='text', scope='all'):
     fid = uid('cf')
     conn = get_conn()
-    conn.execute('INSERT INTO custom_fields(id, label, type, scope, active) VALUES (?,?,?,?,1)',
+    _exec('INSERT INTO custom_fields(id, label, type, scope, active) VALUES (?,?,?,?,1)',
                  (fid, label, field_type, scope))
     return fid
 
@@ -501,20 +600,20 @@ def add_custom_field(label, field_type='text', scope='all'):
 def update_custom_field(fid, label=None, active=None):
     conn = get_conn()
     if label is not None:
-        conn.execute('UPDATE custom_fields SET label=? WHERE id=?', (label, fid))
+        _exec('UPDATE custom_fields SET label=? WHERE id=?', (label, fid))
     if active is not None:
-        conn.execute('UPDATE custom_fields SET active=? WHERE id=?', (1 if active else 0, fid))
+        _exec('UPDATE custom_fields SET active=? WHERE id=?', (1 if active else 0, fid))
 
 
 def delete_custom_field(fid):
     conn = get_conn()
-    conn.execute('DELETE FROM custom_fields WHERE id=?', (fid,))
+    _exec('DELETE FROM custom_fields WHERE id=?', (fid,))
 
 
 # ----- Settings -----
 def get_all_settings():
     conn = get_conn()
-    rows = conn.execute('SELECT key, value FROM settings').fetchall()
+    rows = _fetchall('SELECT key, value FROM settings')
     s = {}
     for r in rows:
         s[r['key']] = r['value']
@@ -527,83 +626,56 @@ def get_all_settings():
 
 
 def set_settings(updates):
-    conn = get_conn()
     for k, v in updates.items():
         if isinstance(v, bool):
             v = '1' if v else '0'
-        conn.execute('INSERT OR REPLACE INTO settings(key, value) VALUES (?,?)', (k, v))
+        # Upsert: update if exists, insert if not
+        if _fetchone('SELECT key FROM settings WHERE key=?', (k,)):
+            _exec('UPDATE settings SET value=? WHERE key=?', (v, k))
+        else:
+            _exec('INSERT INTO settings(key, value) VALUES (?,?)', (k, v))
 
 
 # ----- Core fields -----
 def get_core_fields():
     conn = get_conn()
-    rows = conn.execute('SELECT * FROM core_fields ORDER BY field_key').fetchall()
+    rows = _fetchall('SELECT * FROM core_fields ORDER BY field_key')
     return rows_to_dicts(rows)
 
 
 def set_core_field(field_key, label, visible):
-    conn = get_conn()
-    conn.execute('INSERT OR REPLACE INTO core_fields(field_key, label, visible) VALUES (?,?,?)',
-                 (field_key, label, 1 if visible else 0))
+    vis = 1 if visible else 0
+    if _fetchone('SELECT field_key FROM core_fields WHERE field_key=?', (field_key,)):
+        _exec('UPDATE core_fields SET label=?, visible=? WHERE field_key=?', (label, vis, field_key))
+    else:
+        _exec('INSERT INTO core_fields(field_key, label, visible) VALUES (?,?,?)', (field_key, label, vis))
 
 
 # ----- Geo Catalog -----
 def list_geo_catalog():
     conn = get_conn()
-    return rows_to_dicts(conn.execute('SELECT * FROM geo_catalog ORDER BY province_name, county_name, village_name').fetchall())
+    return rows_to_dicts(_fetchall('SELECT * FROM geo_catalog ORDER BY province_name, county_name, village_name'))
 
 
 def add_geo_entries(entries):
     """entries: list of dicts with keys province_name, county_name, district_name (optional), village_name."""
-    conn = get_conn()
     for e in entries:
-        gid = uid('geo')
-        conn.execute(
-            'INSERT OR IGNORE INTO geo_catalog(id, province_name, county_name, district_name, village_name) VALUES (?,?,?,?,?)',
-            (gid, e['province_name'], e['county_name'], e.get('district_name') or '', e['village_name'])
+        # Check if entry already exists before inserting
+        existing = _fetchone(
+            'SELECT id FROM geo_catalog WHERE province_name=? AND county_name=? AND village_name=?',
+            (e['province_name'], e['county_name'], e['village_name'])
         )
+        if not existing:
+            gid = uid('geo')
+            _exec(
+                'INSERT INTO geo_catalog(id, province_name, county_name, district_name, village_name) VALUES (?,?,?,?,?)',
+                (gid, e['province_name'], e['county_name'], e.get('district_name') or '', e['village_name'])
+            )
 
 
 def clear_geo_catalog():
     conn = get_conn()
-    conn.execute('DELETE FROM geo_catalog')
-
-
-# ----- Login demo box items -----
-def list_login_demo_items(active_only=False):
-    conn = get_conn()
-    sql = 'SELECT * FROM login_demo_items'
-    if active_only:
-        sql += ' WHERE active=1'
-    sql += ' ORDER BY sort_order, created_at DESC'
-    return rows_to_dicts(conn.execute(sql).fetchall())
-
-
-def add_login_demo_item(title, content, sort_order=0):
-    did = uid('ldi')
-    conn = get_conn()
-    conn.execute(
-        'INSERT INTO login_demo_items(id, title, content, active, sort_order) VALUES (?,?,?,?,1,?)',
-        (did, title, content, sort_order)
-    )
-    return did
-
-
-def update_login_demo_item(did, title=None, content=None, active=None, sort_order=None):
-    conn = get_conn()
-    if title is not None:
-        conn.execute('UPDATE login_demo_items SET title=? WHERE id=?', (title, did))
-    if content is not None:
-        conn.execute('UPDATE login_demo_items SET content=? WHERE id=?', (content, did))
-    if active is not None:
-        conn.execute('UPDATE login_demo_items SET active=? WHERE id=?', (1 if active else 0, did))
-    if sort_order is not None:
-        conn.execute('UPDATE login_demo_items SET sort_order=? WHERE id=?', (sort_order, did))
-
-
-def delete_login_demo_item(did):
-    conn = get_conn()
-    conn.execute('DELETE FROM login_demo_items WHERE id=?', (did,))
+    _exec('DELETE FROM geo_catalog')
 
 
 # ----- Login announcements & banners -----
@@ -613,13 +685,13 @@ def list_login_announcements(active_only=False):
     if active_only:
         sql += ' WHERE active=1'
     sql += ' ORDER BY sort_order, created_at DESC'
-    return rows_to_dicts(conn.execute(sql).fetchall())
+    return rows_to_dicts(_fetchall(sql))
 
 
 def add_login_announcement(text, festive=False, sort_order=0):
     aid = uid('la')
     conn = get_conn()
-    conn.execute(
+    _exec(
         'INSERT INTO login_announcements(id, text, festive, active, sort_order) VALUES (?,?,?,1,?)',
         (aid, text, 1 if festive else 0, sort_order)
     )
@@ -629,18 +701,18 @@ def add_login_announcement(text, festive=False, sort_order=0):
 def update_login_announcement(aid, text=None, festive=None, active=None, sort_order=None):
     conn = get_conn()
     if text is not None:
-        conn.execute('UPDATE login_announcements SET text=? WHERE id=?', (text, aid))
+        _exec('UPDATE login_announcements SET text=? WHERE id=?', (text, aid))
     if festive is not None:
-        conn.execute('UPDATE login_announcements SET festive=? WHERE id=?', (1 if festive else 0, aid))
+        _exec('UPDATE login_announcements SET festive=? WHERE id=?', (1 if festive else 0, aid))
     if active is not None:
-        conn.execute('UPDATE login_announcements SET active=? WHERE id=?', (1 if active else 0, aid))
+        _exec('UPDATE login_announcements SET active=? WHERE id=?', (1 if active else 0, aid))
     if sort_order is not None:
-        conn.execute('UPDATE login_announcements SET sort_order=? WHERE id=?', (sort_order, aid))
+        _exec('UPDATE login_announcements SET sort_order=? WHERE id=?', (sort_order, aid))
 
 
 def delete_login_announcement(aid):
     conn = get_conn()
-    conn.execute('DELETE FROM login_announcements WHERE id=?', (aid,))
+    _exec('DELETE FROM login_announcements WHERE id=?', (aid,))
 
 
 def list_login_banners(active_only=False):
@@ -649,13 +721,13 @@ def list_login_banners(active_only=False):
     if active_only:
         sql += ' WHERE active=1'
     sql += ' ORDER BY sort_order, created_at DESC'
-    return rows_to_dicts(conn.execute(sql).fetchall())
+    return rows_to_dicts(_fetchall(sql))
 
 
 def add_login_banner(image_data, image_mime='image/jpeg', link_url='', title='', sort_order=0):
     bid = uid('lb')
     conn = get_conn()
-    conn.execute(
+    _exec(
         'INSERT INTO login_banners(id, image_data, image_mime, link_url, title, active, sort_order) '
         'VALUES (?,?,?,?,?,1,?)',
         (bid, image_data, image_mime, link_url, title, sort_order)
@@ -666,18 +738,18 @@ def add_login_banner(image_data, image_mime='image/jpeg', link_url='', title='',
 def update_login_banner(bid, active=None, sort_order=None, link_url=None, title=None):
     conn = get_conn()
     if active is not None:
-        conn.execute('UPDATE login_banners SET active=? WHERE id=?', (1 if active else 0, bid))
+        _exec('UPDATE login_banners SET active=? WHERE id=?', (1 if active else 0, bid))
     if sort_order is not None:
-        conn.execute('UPDATE login_banners SET sort_order=? WHERE id=?', (sort_order, bid))
+        _exec('UPDATE login_banners SET sort_order=? WHERE id=?', (sort_order, bid))
     if link_url is not None:
-        conn.execute('UPDATE login_banners SET link_url=? WHERE id=?', (link_url, bid))
+        _exec('UPDATE login_banners SET link_url=? WHERE id=?', (link_url, bid))
     if title is not None:
-        conn.execute('UPDATE login_banners SET title=? WHERE id=?', (title, bid))
+        _exec('UPDATE login_banners SET title=? WHERE id=?', (title, bid))
 
 
 def delete_login_banner(bid):
     conn = get_conn()
-    conn.execute('DELETE FROM login_banners WHERE id=?', (bid,))
+    _exec('DELETE FROM login_banners WHERE id=?', (bid,))
 
 
 # ----- Backup / Restore -----

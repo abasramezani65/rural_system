@@ -17,8 +17,6 @@ const State = {
   loginBanners: [],
   loginAnnouncementsAll: [],
   loginBannersAll: [],
-  loginDemoItems: [],
-  loginDemoItemsAll: [],
   editingUserId: null,
   editingRecordId: null,
   charts: {},
@@ -226,11 +224,8 @@ async function loadState() {
     loginBanners: data.loginBanners || [],
     loginAnnouncementsAll: data.loginAnnouncementsAll || [],
     loginBannersAll: data.loginBannersAll || [],
-    loginDemoItems: data.loginDemoItems || [],
-    loginDemoItemsAll: data.loginDemoItemsAll || [],
   });
   renderLoginAnnouncementsAndBanners();
-  renderLoginDemoBox();
   return data;
 }
 
@@ -294,7 +289,6 @@ function renderAll() {
   updateDynamicFields();
   renderLoginAnnouncementsAdmin();
   renderLoginBannersAdmin();
-  renderLoginDemoItemsAdmin();
   renderLoginDesign();
 }
 
@@ -821,92 +815,6 @@ function renderLoginBannersAdmin() {
   });
 }
 
-// ----- Login demo box rendering (on login page) -----
-function renderLoginDemoBox() {
-  const el = document.getElementById('loginDemoNotice');
-  if (!el) return;
-  const items = State.loginDemoItems || [];
-  if (items.length === 0) {
-    el.hidden = true;
-    el.innerHTML = '';
-    return;
-  }
-  el.hidden = false;
-  // Render all active items; first item uses the icon style, rest as plain lines
-  el.innerHTML = items.map((item, idx) => {
-    if (idx === 0) {
-      return `<div class="login-demo-icon">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div>
-        <b>${esc(item.title)}</b><br>
-        ${esc(item.content)}
-      </div>`;
-    }
-    return `<div style="grid-column:1/-1; padding-top: 6px; border-top: 1px dashed rgba(213,154,25,.4); margin-top: 6px;">
-      <b>${esc(item.title)}</b><br>${esc(item.content)}
-    </div>`;
-  }).join('');
-}
-
-// ----- Admin: Login demo items management -----
-function renderLoginDemoItemsAdmin() {
-  const el = document.getElementById('loginDemoItemsList');
-  if (!el) return;
-  const list = State.loginDemoItemsAll || [];
-  if (!list.length) { el.innerHTML = '<div class="empty">پیامی ثبت نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>عنوان</th><th>محتوا</th><th>ترتیب</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
-    list.map(d => `<tr>
-      <td>${esc(d.title)}</td>
-      <td>${esc(d.content)}</td>
-      <td>${fa(d.sort_order || 0)}</td>
-      <td>${d.active ? 'فعال' : 'غیرفعال'}</td>
-      <td>
-        <button class="small secondary" data-edit-ldi="${d.id}">ویرایش</button>
-        <button class="small secondary" data-toggle-ldi="${d.id}" data-active="${d.active ? 0 : 1}">${d.active ? 'غیرفعال' : 'فعال'}</button>
-        <button class="small danger" data-del-ldi="${d.id}">حذف</button>
-      </td>
-    </tr>`).join('') + '</tbody></table>';
-  el.querySelectorAll('[data-toggle-ldi]').forEach(b => b.onclick = async () => {
-    try {
-      await api(`/api/login-demo-items/${b.dataset.toggleLdi}`, { method: 'POST', body: { active: b.dataset.active === '1' } });
-      const d = State.loginDemoItemsAll.find(x => x.id === b.dataset.toggleLdi);
-      if (d) d.active = b.dataset.active === '1';
-      renderLoginDemoItemsAdmin();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-del-ldi]').forEach(b => b.onclick = async () => {
-    if (!confirm('حذف شود؟')) return;
-    try {
-      await api(`/api/login-demo-items/${b.dataset.delLdi}`, { method: 'DELETE' });
-      State.loginDemoItemsAll = State.loginDemoItemsAll.filter(x => x.id !== b.dataset.delLdi);
-      State.loginDemoItems = State.loginDemoItems.filter(x => x.id !== b.dataset.delLdi);
-      renderLoginDemoItemsAdmin();
-      renderLoginDemoBox();
-      toast('پیام حذف شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-edit-ldi]').forEach(b => b.onclick = () => {
-    const d = State.loginDemoItemsAll.find(x => x.id === b.dataset.editLdi);
-    if (!d) return;
-    const title = prompt('عنوان پیام:', d.title);
-    if (title === null) return;
-    const content = prompt('محتوای پیام:', d.content);
-    if (content === null) return;
-    api(`/api/login-demo-items/${d.id}`, { method: 'POST', body: { title, content } })
-      .then(() => {
-        d.title = title; d.content = content;
-        renderLoginDemoItemsAdmin();
-        renderLoginDemoBox();
-        toast('پیام به‌روزرسانی شد.');
-      })
-      .catch(e => toast(e.message, 'error'));
-  });
-}
-
 function typeLabel(t) {
   return { text: 'متن', number: 'عدد', date: 'تاریخ', url: 'لینک', textarea: 'متن تفصیلی' }[t] || t;
 }
@@ -1319,29 +1227,6 @@ async function init() {
     };
     reader.readAsDataURL(file);
   });
-
-  // Login demo items (manage the demo box content on login page)
-  const addDemoBtn = document.getElementById('addLoginDemoItem');
-  if (addDemoBtn) {
-    addDemoBtn.addEventListener('click', async () => {
-      const title = document.getElementById('newDemoTitle').value.trim();
-      const content = document.getElementById('newDemoContent').value.trim();
-      if (!title || !content) {
-        toast('عنوان و محتوا الزامی است.', 'error');
-        return;
-      }
-      try {
-        const resp = await api('/api/login-demo-items', { method: 'POST', body: { title, content, sort_order: 0 } });
-        State.loginDemoItemsAll.unshift({ id: resp.id, title, content, active: 1, sort_order: 0 });
-        State.loginDemoItems.unshift({ id: resp.id, title, content, active: 1, sort_order: 0 });
-        document.getElementById('newDemoTitle').value = '';
-        document.getElementById('newDemoContent').value = '';
-        renderLoginDemoItemsAdmin();
-        renderLoginDemoBox();
-        toast('پیام اضافه شد.');
-      } catch (e) { toast(e.message, 'error'); }
-    });
-  }
 
   // Branding
   document.getElementById('saveBranding').addEventListener('click', async () => {

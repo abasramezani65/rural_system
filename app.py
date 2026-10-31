@@ -1,4 +1,3 @@
-# Updated version
 """Flask app for the Rural Services System.
 
 Run with:
@@ -111,7 +110,7 @@ def api_state():
     """Return all data needed by frontend in one call."""
     user = current_user()
     if not user:
-        # Allow reading of public settings + login announcements/banners/demo items for login page
+        # Allow reading of public settings + login announcements/banners for login page
         s = DB.get_all_settings()
         return jsonify({
             'authenticated': False,
@@ -119,7 +118,6 @@ def api_state():
             'announcements': DB.list_announcements(),
             'loginAnnouncements': DB.list_login_announcements(active_only=True),
             'loginBanners': DB.list_login_banners(active_only=True),
-            'loginDemoItems': DB.list_login_demo_items(active_only=True),
         })
     # Filter records based on user scope
     filters = {}
@@ -149,50 +147,7 @@ def api_state():
         'loginBanners': DB.list_login_banners(active_only=True),
         'loginAnnouncementsAll': DB.list_login_announcements() if user['role'] == 'national' else [],
         'loginBannersAll': DB.list_login_banners() if user['role'] == 'national' else [],
-        'loginDemoItems': DB.list_login_demo_items(active_only=True),
-        'loginDemoItemsAll': DB.list_login_demo_items() if user['role'] == 'national' else [],
     })
-
-
-# ----- API: Login demo box items -----
-@app.route('/api/login-demo-items', methods=['POST'])
-def api_login_demo_item_add():
-    user = require_auth()
-    if not user or user['role'] != 'national':
-        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
-    data = request.get_json(force=True) or {}
-    title = (data.get('title') or '').strip()
-    content = (data.get('content') or '').strip()
-    if not title or not content:
-        return jsonify({'error': 'عنوان و محتوا الزامی است.'}), 400
-    sort_order = int(data.get('sort_order', 0) or 0)
-    did = DB.add_login_demo_item(title, content, sort_order)
-    return jsonify({'ok': True, 'id': did})
-
-
-@app.route('/api/login-demo-items/<did>', methods=['POST'])
-def api_login_demo_item_update(did):
-    user = require_auth()
-    if not user or user['role'] != 'national':
-        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
-    data = request.get_json(force=True) or {}
-    DB.update_login_demo_item(
-        did,
-        title=data.get('title'),
-        content=data.get('content'),
-        active=data.get('active'),
-        sort_order=data.get('sort_order')
-    )
-    return jsonify({'ok': True})
-
-
-@app.route('/api/login-demo-items/<did>', methods=['DELETE'])
-def api_login_demo_item_delete(did):
-    user = require_auth()
-    if not user or user['role'] != 'national':
-        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
-    DB.delete_login_demo_item(did)
-    return jsonify({'ok': True})
 
 
 # ----- API: Login announcements -----

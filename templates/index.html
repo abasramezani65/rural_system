@@ -17,8 +17,8 @@
   <!-- Title and logo placed above the login card -->
   <div class="login-brand-wrap" id="loginBrandWrap">
     <picture>
-      <source srcset="/static/img/login-title-logo.webp?v=8" type="image/webp">
-      <img src="/static/img/login-title-logo.jpg?v=8" alt="عنوان و لوگوی سامانه" class="login-brand-img">
+      <source srcset="/static/img/login-title-logo.webp" type="image/webp">
+      <img src="/static/img/login-title-logo.jpg?v=7" alt="عنوان و لوگوی سامانه" class="login-brand-img">
     </picture>
   </div>
 
@@ -68,8 +68,17 @@
       <div id="loginError" class="login-error"></div>
     </form>
 
-    <div id="loginDemoNotice" class="login-demo" hidden>
-      <!-- Content rendered dynamically by JS from admin-managed data -->
+    <div id="loginDemoNotice" class="login-demo">
+      <div class="login-demo-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <span id="loginDemoText">ورود با حساب آزمایشی</span><br>
+        نام کاربری <b>admin</b> <span class="login-separator">|</span> رمز عبور <b>admin12345</b>
+      </div>
     </div>
   </div>
 </div>
@@ -237,22 +246,6 @@
         <div class="notice" style="margin-top:18px">
           <b>نکته:</b> برای جابجایی کادر لاگین، اعلان‌ها و بنر روی صفحه ورود، آن‌ها را با ماوس بکشید. موقعیت در مرورگر شما ذخیره می‌شود.
         </div>
-      </div>
-    </div>
-
-    <!-- Login demo box management -->
-    <div class="card collapsible" id="loginDemoCard">
-      <div class="card-header"><h2>مدیریت کادر پیام صفحه ورود</h2><span class="chevron">▼</span></div>
-      <div class="card-body">
-        <p class="hint">این کادر در پایین فرم ورود نمایش داده می‌شود. می‌توانید چند پیام/اعلان اضافه کنید (مثلاً حساب آزمایشی، اطلاعیه مناسبتی). اگر هیچ پیامی فعال نباشد، کادر نمایش داده نمی‌شود.</p>
-        <h3>افزودن پیام جدید</h3>
-        <div class="grid">
-          <div><label for="newDemoTitle">عنوان (مثلاً: ورود با حساب آزمایشی)</label><input id="newDemoTitle" placeholder="عنوان پیام"></div>
-          <div><label for="newDemoContent">محتوا (متن کامل، می‌تواند شامل نام کاربری و رمز باشد)</label><input id="newDemoContent" placeholder="مثلاً: نام کاربری admin | رمز عبور admin12345"></div>
-        </div>
-        <div class="actions"><button id="addLoginDemoItem">افزودن پیام</button></div>
-        <h3 style="margin-top:18px">پیام‌های موجود</h3>
-        <div id="loginDemoItemsList" style="margin-top:12px"></div>
       </div>
     </div>
 
