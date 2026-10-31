@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سامانه پایش خدمات روستایی</title>
+<link rel="stylesheet" href="/static/css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏞️</text></svg>">
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay" class="login-overlay">
+  <!-- Subtle dark overlay for readability of card content -->
+  <div class="login-bg-overlay"></div>
+
+  <!-- Title and logo placed above the login card -->
+  <div class="login-brand-wrap" id="loginBrandWrap">
+    <picture>
+      <source srcset="/static/img/login-title-logo.webp?v=8" type="image/webp">
+      <img src="/static/img/login-title-logo.jpg?v=8" alt="عنوان و لوگوی سامانه" class="login-brand-img">
+    </picture>
+  </div>
+
+  <!-- Login card -->
+  <div class="login-card" id="loginCard">
+    <form id="loginForm" class="login-form">
+      <div class="login-field">
+        <label for="loginUsername" id="loginUsernameLabel">نام کاربری</label>
+        <div class="input-wrap">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+            <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+            <path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input id="loginUsername" placeholder="نام کاربری" autocomplete="username" required>
+        </div>
+      </div>
+      <div class="login-field">
+        <label for="loginPassword" id="loginPasswordLabel">رمز عبور</label>
+        <div class="input-wrap">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+            <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <input id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password" required>
+          <button type="button" class="toggle-password" id="togglePassword" aria-label="نمایش رمز">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="2"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="login-forgot-row">
+        <label class="login-remember">
+          <input type="checkbox" id="loginRemember"> مرا به‌خاطر بسپار
+        </label>
+        <a href="#" id="loginForgotPassword">فراموشی رمز عبور؟</a>
+      </div>
+      <div class="actions login-actions">
+        <button id="loginSubmitButton" type="submit">
+          <span>ورود به سامانه</span>
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+            <path d="M15 12H3m12 0-4-4m4 4-4 4M21 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <div id="loginError" class="login-error"></div>
+    </form>
+
+    <div id="loginDemoNotice" class="login-demo" hidden>
+      <!-- Content rendered dynamically by JS from admin-managed data -->
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="mainHeader" hidden>
+  <button id="themeToggle" class="theme-toggle" type="button">🌙 تاریک</button>
+  <div class="brand-row">
+    <div class="logo-slot" id="logoSlot"><span>محل درج لوگو</span></div>
+    <div class="brand-title-wrap">
+      <h1 id="appTitle">سامانه پایش خدمات روستایی</h1>
+      <div id="titleBannerWrap" class="title-banner-wrap" hidden><img id="titleBanner" alt="بنر"></div>
+      <p id="appSubtitle">ثبت خدمات در سطح شهرستان، استان و کشور</p>
+      <div id="sessionBar" class="user-chip" hidden>
+        <span id="sessionLabel"></span>
+        <button type="button" id="logoutBtn">خروج</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-shell" id="tickerShell" hidden>
+  <span class="ticker-label">اعلان‌ها</span>
+  <div class="ticker-window"><div id="tickerTrack" class="ticker-track"></div></div>
+</div>
+
+<!-- MAIN WRAP -->
+<div class="wrap" id="mainWrap" hidden>
+
+  <nav class="nav">
+    <button class="tab active" data-tab="register">ثبت خدمت</button>
+    <button class="tab" data-tab="summary">جمع‌بندی و نمودار</button>
+    <button class="tab" data-tab="records">سوابق</button>
+    <button class="tab" data-tab="admin" id="adminTab" hidden>پنل مدیریت</button>
+    <button class="tab" data-tab="backup">خروجی و پشتیبان</button>
+  </nav>
+
+  <!-- REGISTER -->
+  <section id="register" class="panel active">
+    <div class="card">
+      <h2>ثبت اطلاعات کارشناس و خدمت انجام‌شده</h2>
+      <form id="recordForm">
+        <input type="hidden" id="editId">
+        <div class="grid three">
+          <div><label for="expertName">نام و نام خانوادگی کارشناس</label><input id="expertName" placeholder="نام کارشناس"></div>
+          <div><label for="expertRole">سمت / سطح فعالیت</label><select id="expertRole" required></select></div>
+          <div><label for="org">واحد یا مجموعه مجری</label><input id="org" placeholder="نام مجموعه / دستگاه"></div>
+          <div><label for="province">استان</label><select id="province" required></select></div>
+          <div><label for="county">شهرستان</label><select id="county" required></select></div>
+          <div><label for="district">دهستان</label><select id="district"><option value="">انتخاب دهستان</option></select></div>
+          <div><label for="village">روستا</label><input id="village" required placeholder="نام روستا"></div>
+          <div><label for="service">خدمت انجام‌شده</label><select id="service" required></select></div>
+          <div><label for="serviceDate">تاریخ اجرا</label><input id="serviceDate" placeholder="مثلاً ۱۴۰۵/۰۷/۲۰"></div>
+          <div><label for="beneficiaries">تعداد بهره‌مندان (اختیاری)</label><input id="beneficiaries" type="number" min="0" placeholder="۰"></div>
+        </div>
+        <div style="margin-top:14px"><label for="description">شرح اقدام و نتیجه خدمت</label><textarea id="description" placeholder="چه کاری انجام شده و چه نتیجه‌ای داشته است؟"></textarea></div>
+        <div id="evidenceFieldWrap" style="margin-top:14px"><label for="evidence">لینک مستندات (اختیاری)</label><input id="evidence" type="url" placeholder="https://..."></div>
+        <div id="dynamicRecordFields" class="dynamic-fields"></div>
+        <div class="actions">
+          <button type="submit" id="saveBtn">ثبت خدمت</button>
+          <button type="button" class="secondary" id="resetFormBtn">پاک‌کردن فرم</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- SUMMARY & CHARTS -->
+  <section id="summary" class="panel">
+    <div class="card">
+      <h2>جمع‌بندی و فیلتر روستاها</h2>
+      <p class="hint">در حالت «همه خدمات انتخابی»، روستا باید تمام خدمات را داشته باشد. در حالت «حداقل یکی»، روستاهای تک‌خدمتی و چندخدمتی هم نمایش داده می‌شوند.</p>
+      <div class="grid">
+        <div><label>خدمات موردنظر</label><div id="filterServices" class="service-list"></div></div>
+        <div>
+          <label for="filterMode">منطق فیلتر</label>
+          <select id="filterMode">
+            <option value="all">فقط روستاهایی که تمام خدمات انتخابی را دارند (AND)</option>
+            <option value="any">روستاهایی که حداقل یکی از خدمات را دارند (OR)</option>
+          </select>
+          <div style="margin-top:12px"><label for="filterProvince">استان</label><select id="filterProvince"></select></div>
+          <div style="margin-top:12px"><label for="filterCounty">شهرستان</label><select id="filterCounty"></select></div>
+          <div class="actions">
+            <button id="applyFilter">اعمال فیلتر</button>
+            <button class="secondary" id="clearFilter">حذف فیلترها</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="statVillages">۰</b><span>روستاهای منطبق</span></div>
+      <div class="stat"><b id="statServices">۰</b><span>ثبت خدمت</span></div>
+      <div class="stat"><b id="statBeneficiaries">۰</b><span>بهره‌مندان</span></div>
+      <div class="stat"><b id="statProvinces">۰</b><span>استان‌ها</span></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="chart-container">
+      <h2>نمودار آماری خدمات</h2>
+      <div class="grid two" style="grid-template-columns:1fr 1fr">
+        <div>
+          <h3>توزیع خدمات ثبت‌شده</h3>
+          <div class="chart-canvas-wrap"><canvas id="chartServices"></canvas></div>
+        </div>
+        <div>
+          <h3>خدمات بر اساس استان</h3>
+          <div class="chart-canvas-wrap"><canvas id="chartProvinces"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="actions" style="justify-content:space-between;margin-top:0">
+        <h2 style="margin:0">نتایج فیلتر</h2>
+        <button class="gold" id="exportFiltered">دانلود نتایج CSV</button>
+      </div>
+      <div id="summaryResults" class="table-wrap" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- RECORDS -->
+  <section id="records" class="panel">
+    <div class="card">
+      <div class="actions" style="justify-content:space-between;margin-top:0">
+        <h2 style="margin:0">سوابق خدمات ثبت‌شده</h2>
+        <span id="recordCount" class="badge">۰ رکورد</span>
+      </div>
+      <div id="recordsTable" class="table-wrap"></div>
+    </div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="admin" class="panel">
+    <!-- Section nav -->
+    <div class="card" style="padding:14px 18px">
+      <h2 style="margin:0 0 10px">پنل مدیریت</h2>
+      <div class="admin-section-list" id="adminSectionList"></div>
+    </div>
+
+    <!-- Login announcements & banners management -->
+    <div class="card collapsible" id="loginContentCard">
+      <div class="card-header"><h2>مدیریت اعلان‌ها و بنر صفحه ورود</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <h3>پیام‌های مناسبتی و اعلان‌ها</h3>
+        <p class="hint">پیام‌هایی که در صفحه ورود نمایش داده می‌شوند. نوع «مناسبی» با رنگ قرمز/طلایی برای اعیاد و مناسبت‌ها استفاده می‌شود.</p>
+        <div class="grid three">
+          <div style="grid-column:1/-1"><label for="newLoginAnnouncement">متن اعلان</label><input id="newLoginAnnouncement" placeholder="مثلاً: فرا رسیدن اعید سعید فطر مبارک"></div>
+          <div><label for="newLoginAnnouncementFestive">نوع</label><select id="newLoginAnnouncementFestive"><option value="0">معمولی</option><option value="1">مناسبی (قرمز/طلایی)</option></select></div>
+          <div><label for="newLoginAnnouncementOrder">ترتیب نمایش</label><input id="newLoginAnnouncementOrder" type="number" value="0" placeholder="۰"></div>
+          <div class="actions" style="align-items:end"><button id="addLoginAnnouncement">افزودن اعلان</button></div>
+        </div>
+        <div id="loginAnnouncementsAdminList" style="margin-top:12px"></div>
+
+        <h3 style="margin-top:22px">بنر تبلیغاتی</h3>
+        <p class="hint">بنر در صفحه ورود نمایش داده می‌شود. ابعاد پیشنهادی: حداکثر ۵۴۰×۱۳۰ پیکسل. بنر قابل جابجایی روی صفحه است.</p>
+        <div class="grid three">
+          <div style="grid-column:1/-1"><label for="newLoginBannerFile">فایل تصویر بنر</label><input id="newLoginBannerFile" type="file" accept="image/*"></div>
+          <div><label for="newLoginBannerTitle">عنوان (توضیحی)</label><input id="newLoginBannerTitle" placeholder="مثلاً: بنر بهار خدمات روستایی"></div>
+          <div><label for="newLoginBannerLink">لینک (اختیاری)</label><input id="newLoginBannerLink" type="url" placeholder="https://..."></div>
+          <div class="actions" style="align-items:end"><button id="addLoginBanner">بارگذاری بنر</button></div>
+        </div>
+        <div id="loginBannersAdminList" style="margin-top:12px"></div>
+
+        <div class="notice" style="margin-top:18px">
+          <b>نکته:</b> برای جابجایی کادر لاگین، اعلان‌ها و بنر روی صفحه ورود، آن‌ها را با ماوس بکشید. موقعیت در مرورگر شما ذخیره می‌شود.
+        </div>
+      </div>
+    </div>
+
+    <!-- Login demo box management -->
+    <div class="card collapsible" id="loginDemoCard">
+      <div class="card-header"><h2>مدیریت کادر پیام صفحه ورود</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <p class="hint">این کادر در پایین فرم ورود نمایش داده می‌شود. می‌توانید چند پیام/اعلان اضافه کنید (مثلاً حساب آزمایشی، اطلاعیه مناسبتی). اگر هیچ پیامی فعال نباشد، کادر نمایش داده نمی‌شود.</p>
+        <h3>افزودن پیام جدید</h3>
+        <div class="grid">
+          <div><label for="newDemoTitle">عنوان (مثلاً: ورود با حساب آزمایشی)</label><input id="newDemoTitle" placeholder="عنوان پیام"></div>
+          <div><label for="newDemoContent">محتوا (متن کامل، می‌تواند شامل نام کاربری و رمز باشد)</label><input id="newDemoContent" placeholder="مثلاً: نام کاربری admin | رمز عبور admin12345"></div>
+        </div>
+        <div class="actions"><button id="addLoginDemoItem">افزودن پیام</button></div>
+        <h3 style="margin-top:18px">پیام‌های موجود</h3>
+        <div id="loginDemoItemsList" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- User management -->
+    <div class="card collapsible" id="accessManagementCard">
+      <div class="card-header"><h2>مدیریت کاربران و سطح دسترسی</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <p class="hint">مدیر کشوری برای هر کاربر سطح کشوری، استانی یا شهرستانی تعیین می‌کند.</p>
+        <div class="grid three">
+          <div><label for="userFullName">نام و نام خانوادگی</label><input id="userFullName"></div>
+          <div><label for="userUsername">نام کاربری</label><input id="userUsername"></div>
+          <div><label for="userPassword">گذرواژه جدید</label><input id="userPassword" type="password" placeholder="حداقل ۸ نویسه"></div>
+          <div><label for="userRole">سطح دسترسی</label><select id="userRole"><option value="national">کشوری</option><option value="provincial">استانی</option><option value="county">شهرستانی</option></select></div>
+          <div><label for="userProvince">استان مجاز</label><select id="userProvince"><option value="">انتخاب استان</option></select></div>
+          <div><label for="userCounty">شهرستان مجاز</label><select id="userCounty"><option value="">انتخاب شهرستان</option></select></div>
+        </div>
+        <div class="actions">
+          <button id="saveUser">افزودن کاربر</button>
+          <button type="button" class="secondary" id="cancelUserEdit">پاک‌کردن فرم</button>
+        </div>
+        <div id="usersTable" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <!-- Login design -->
+    <div class="card collapsible">
+      <div class="card-header"><h2>طراحی و شخصی‌سازی صفحه ورود</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <div class="grid three">
+          <div><label for="loginHeadingSetting">عنوان صفحه ورود</label><input id="loginHeadingSetting"></div>
+          <div><label for="loginSubtitleSetting">متن زیر عنوان</label><input id="loginSubtitleSetting"></div>
+          <div><label for="loginButtonSetting">متن دکمه ورود</label><input id="loginButtonSetting"></div>
+          <div><label for="loginUsernameLabelSetting">عنوان فیلد نام کاربری</label><input id="loginUsernameLabelSetting"></div>
+          <div><label for="loginPasswordLabelSetting">عنوان فیلد گذرواژه</label><input id="loginPasswordLabelSetting"></div>
+          <div><label for="loginDemoTextSetting">متن اطلاعات آزمایشی</label><input id="loginDemoTextSetting"></div>
+          <div><label for="loginContactTextSetting">متن لینک راهنما</label><input id="loginContactTextSetting"></div>
+          <div><label for="loginContactUrlSetting">لینک راهنما</label><input id="loginContactUrlSetting" type="url" placeholder="https://..."></div>
+          <div><label for="loginExtraSetting">متن پایین فرم</label><input id="loginExtraSetting"></div>
+          <div><label for="loginBgSetting">رنگ پس‌زمینه</label><input id="loginBgSetting" type="color" value="#263b70"></div>
+          <div><label for="loginAccentSetting">رنگ دکمه ورود</label><input id="loginAccentSetting" type="color" value="#3156a5"></div>
+          <div><label for="loginBackgroundPreset">پس‌زمینه آماده</label><select id="loginBackgroundPreset"><option value="hero">طرح اختصاصی</option><option value="village">منظره روستایی</option><option value="sunrise">طلوع خورشید</option><option value="green">سبز کشاورزی</option><option value="blue">آبی رسمی</option><option value="warm">گرم روستایی</option></select></div>
+        </div>
+        <div class="actions">
+          <button id="saveLoginDesign">ذخیره طراحی</button>
+        </div>
+        <div style="margin-top:12px">
+          <label class="check"><input id="showLoginDemoNotice" type="checkbox"> نمایش اطلاعات حساب آزمایشی</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Branding -->
+    <div class="card collapsible">
+      <div class="card-header"><h2>تنظیمات عنوان، لوگو و اعلان‌ها</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <div class="grid">
+          <div><label for="settingTitle">عنوان سامانه</label><input id="settingTitle"></div>
+          <div><label for="settingSubtitle">توضیح زیر عنوان</label><input id="settingSubtitle"></div>
+        </div>
+        <div class="actions">
+          <button id="saveBranding">ذخیره عنوان</button>
+        </div>
+        <h3 style="margin-top:18px">اعلان‌ها و اخبار متحرک</h3>
+        <div class="grid">
+          <div><label for="newAnnouncement">متن اعلان</label><input id="newAnnouncement" placeholder="متن خبر یا اعلان"></div>
+          <div class="actions" style="align-items:end"><button id="addAnnouncement">افزودن اعلان</button></div>
+        </div>
+        <div id="announcementList" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Custom fields -->
+    <div class="card collapsible">
+      <div class="card-header"><h2>مدیریت فیلدهای فرم</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <p class="hint">فیلدهای سفارشی برای جمع‌آوری اطلاعات اضافی در فرم ثبت.</p>
+        <div class="grid three">
+          <div><label for="newFieldLabel">عنوان فیلد</label><input id="newFieldLabel" placeholder="مثلاً شماره پیگیری"></div>
+          <div><label for="newFieldType">نوع فیلد</label><select id="newFieldType"><option value="text">متن کوتاه</option><option value="number">عدد</option><option value="date">تاریخ</option><option value="url">لینک</option><option value="textarea">متن تفصیلی</option></select></div>
+          <div class="actions" style="align-items:end"><button id="addCustomField">افزودن فیلد</button></div>
+        </div>
+        <div id="customFieldsList" style="margin-top:12px"></div>
+        <h3 style="margin-top:18px">فیلد لینک مستندات</h3>
+        <label class="check"><input id="evidenceEnabled" type="checkbox" checked> نمایش فیلد لینک مستندات</label>
+        <div class="actions"><button id="saveEvidenceSetting">ذخیره تنظیمات</button></div>
+      </div>
+    </div>
+
+    <!-- Roles & services -->
+    <div class="card collapsible">
+      <div class="card-header"><h2>مدیریت سمت‌ها و خدمات</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <h3>سمت‌ها</h3>
+        <div class="grid">
+          <div><label for="newRole">عنوان سمت جدید</label><input id="newRole" placeholder="مثلاً کارشناس استانی"></div>
+          <div class="actions" style="align-items:end"><button id="addRole">افزودن سمت</button></div>
+        </div>
+        <div id="roleList" style="margin-top:12px"></div>
+        <h3 style="margin-top:18px">فهرست خدمات</h3>
+        <div class="grid">
+          <div><label for="newService">عنوان خدمت جدید</label><input id="newService" placeholder="مثلاً بهسازی راه روستایی"></div>
+          <div class="actions" style="align-items:end"><button id="addService">افزودن خدمت</button></div>
+        </div>
+        <div id="serviceListAdmin" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Geo -->
+    <div class="card collapsible">
+      <div class="card-header"><h2>مدیریت استان‌ها و شهرستان‌ها</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <div class="grid">
+          <div><label for="newProvince">افزودن استان</label><input id="newProvince" placeholder="نام استان"><div class="actions"><button id="addProvince">افزودن استان</button></div></div>
+          <div>
+            <label for="provinceForCounty">استان مربوط به شهرستان</label><select id="provinceForCounty"></select>
+            <label for="newCounty" style="margin-top:8px">نام شهرستان جدید</label><input id="newCounty" placeholder="نام شهرستان">
+            <div class="actions"><button id="addCounty">افزودن شهرستان</button></div>
+          </div>
+        </div>
+        <div id="geoList" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BACKUP -->
+  <section id="backup" class="panel">
+    <div class="card">
+      <h2>خروجی و پشتیبان اطلاعات</h2>
+      <p class="hint">اطلاعات به‌صورت متمرکز در پایگاه داده سرور ذخیره می‌شود. در هر زمان می‌توانید نسخه پشتیبان تهیه کنید.</p>
+      <div class="actions">
+        <button id="exportAll">دانلود CSV</button>
+        <button id="backupJson" class="secondary">دانلود JSON</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">سامانه پایش خدمات روستایی — نسخه پایتون</div>
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer"></div>
+
+<!-- Chart.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- App script -->
+<script src="/static/js/app.js"></script>
+</body>
+</html>
