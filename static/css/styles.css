@@ -697,6 +697,67 @@ html[data-theme="dark"] .login-card {
   margin-bottom: 18px;
 }
 
+/* Banner container — wraps admin-managed banner images above the login card */
+.login-banner-container {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 4px;
+  text-align: center;
+}
+.login-banner-container:empty { display: none; }
+.login-banner-container img {
+  display: block;
+  width: 100%;
+  max-height: 130px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+.login-banner-container a {
+  display: block;
+}
+
+/* Login announcements list — the bottom box below the login card */
+.login-announcement-list {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 3;
+  position: relative;
+}
+.login-announcement-list:empty { display: none; }
+
+.login-announcement-item {
+  background: rgba(255,255,255,.95);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink, #1f2937);
+  text-align: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  border-right: 4px solid var(--accent, #3156a5);
+  animation: cardIn .4s cubic-bezier(.22,1,.36,1);
+}
+.login-announcement-item.festive {
+  background: linear-gradient(135deg, #fff8e6, #fff3d0);
+  border-right-color: #d59a19;
+  color: #72500b;
+  font-weight: 500;
+}
+html[data-theme="dark"] .login-announcement-item {
+  background: rgba(26,37,60,.95);
+  color: var(--ink, #e5e7eb);
+}
+html[data-theme="dark"] .login-announcement-item.festive {
+  background: linear-gradient(135deg, #2a2410, #38300c);
+  color: #f0b040;
+}
+
 /* Login mark/title/subtitle hidden by default now — they're shown only if user customizes */
 .login-mark { display: none; }
 .login-title { display: none; }
