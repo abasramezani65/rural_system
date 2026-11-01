@@ -26,26 +26,66 @@ SCHEMA_PG_PATH = os.path.join(os.path.dirname(__file__), 'schema_pg.sql')
 _local = threading.local()
 
 
+def _is_connection_alive(conn):
+    """Check if a PostgreSQL connection is still usable (Supabase pooler may close idle ones)."""
+    try:
+        cur = conn.cursor()
+        cur.execute('SELECT 1')
+        cur.close()
+        return True
+    except Exception:
+        return False
+
+
+def _new_pg_conn():
+    """Create a fresh PostgreSQL connection."""
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = True
+    conn.cursor_factory = RealDictCursor
+    return conn
+
+
 def get_conn():
     """Return a per-thread connection.
     - PostgreSQL: psycopg2 connection with RealDictCursor
+      (reconnects automatically if the cached connection went stale due to Supabase pooler idle timeout)
     - SQLite: sqlite3 connection with Row factory
     """
-    if not hasattr(_local, 'conn'):
+    if hasattr(_local, 'conn'):
         if IS_POSTGRES:
-            import psycopg2
-            from psycopg2.extras import RealDictCursor
-            _local.conn = psycopg2.connect(DATABASE_URL)
-            _local.conn.autocommit = True
-            _local.conn.cursor_factory = RealDictCursor
+            # Verify cached connection is still alive; reconnect if stale
+            if _is_connection_alive(_local.conn):
+                return _local.conn
+            else:
+                try:
+                    _local.conn.close()
+                except Exception:
+                    pass
+                del _local.conn
         else:
-            import sqlite3
-            _local.conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
-            _local.conn.row_factory = sqlite3.Row
-            _local.conn.execute('PRAGMA journal_mode=WAL;')
-            _local.conn.execute('PRAGMA foreign_keys=ON;')
-            _local.conn.execute('PRAGMA busy_timeout=5000;')
+            return _local.conn
+
+    if IS_POSTGRES:
+        _local.conn = _new_pg_conn()
+    else:
+        import sqlite3
+        _local.conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
+        _local.conn.row_factory = sqlite3.Row
+        _local.conn.execute('PRAGMA journal_mode=WAL;')
+        _local.conn.execute('PRAGMA foreign_keys=ON;')
+        _local.conn.execute('PRAGMA busy_timeout=5000;')
     return _local.conn
+
+
+def _is_conn_error(e):
+    """Check if an exception is a connection-level error worth retrying."""
+    if not IS_POSTGRES:
+        return False
+    msg = str(e).lower()
+    return ('ssl' in msg or 'connection' in msg or 'eof' in msg
+            or 'bad record' in msg or 'closed' in msg)
 
 
 def _convert_sql(sql):
@@ -56,27 +96,63 @@ def _convert_sql(sql):
 
 
 def _exec(sql, params=None):
-    """Execute a single SQL statement. Returns cursor."""
-    conn = get_conn()
+    """Execute a single SQL statement. Returns cursor.
+    Retries once on stale PostgreSQL connection (Supabase pooler timeout)."""
     sql = _convert_sql(sql)
-    if IS_POSTGRES:
-        cur = conn.cursor()
-        cur.execute(sql, params or ())
-        return cur
-    else:
-        return conn.execute(sql, params or ())
+    try:
+        conn = get_conn()
+        if IS_POSTGRES:
+            cur = conn.cursor()
+            cur.execute(sql, params or ())
+            return cur
+        else:
+            return conn.execute(sql, params or ())
+    except Exception as e:
+        if _is_conn_error(e):
+            # Stale connection — force reconnect and retry once
+            if hasattr(_local, 'conn'):
+                try:
+                    _local.conn.close()
+                except Exception:
+                    pass
+                del _local.conn
+            conn = get_conn()
+            if IS_POSTGRES:
+                cur = conn.cursor()
+                cur.execute(sql, params or ())
+                return cur
+            else:
+                return conn.execute(sql, params or ())
+        raise
 
 
 def _execmany(sql, seq_of_params):
-    """Execute many. Returns cursor."""
-    conn = get_conn()
+    """Execute many. Returns cursor. Retries on stale PostgreSQL connection."""
     sql = _convert_sql(sql)
-    if IS_POSTGRES:
-        cur = conn.cursor()
-        cur.executemany(sql, seq_of_params)
-        return cur
-    else:
-        return conn.executemany(sql, seq_of_params)
+    try:
+        conn = get_conn()
+        if IS_POSTGRES:
+            cur = conn.cursor()
+            cur.executemany(sql, seq_of_params)
+            return cur
+        else:
+            return conn.executemany(sql, seq_of_params)
+    except Exception as e:
+        if _is_conn_error(e):
+            if hasattr(_local, 'conn'):
+                try:
+                    _local.conn.close()
+                except Exception:
+                    pass
+                del _local.conn
+            conn = get_conn()
+            if IS_POSTGRES:
+                cur = conn.cursor()
+                cur.executemany(sql, seq_of_params)
+                return cur
+            else:
+                return conn.executemany(sql, seq_of_params)
+        raise
 
 
 def _execscript(sql_script):
