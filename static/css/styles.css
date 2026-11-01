@@ -643,9 +643,9 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
   z-index: 3;
   width: 100%;
   max-width: 420px;
-  margin-top: 4px; /* very small gap below the brand image */
+  margin-top: 0;
   background: rgba(255,255,255,.97);
-  border-radius: var(--radius-xl);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   padding: 24px 28px 22px;
   box-shadow:
     0 32px 80px rgba(0,0,0,.5),
@@ -654,25 +654,8 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
   animation: cardIn .5s cubic-bezier(.22,1,.36,1);
   text-align: center;
   backdrop-filter: blur(20px);
-  /* Draggable */
-  cursor: grab;
-  user-select: none;
   transition: box-shadow .2s, opacity .2s;
 }
-.login-card:active { cursor: grabbing; }
-.login-card.dragging {
-  box-shadow: 0 40px 100px rgba(0,0,0,.65);
-  opacity: .98;
-}
-/* Form elements should still work despite draggable parent */
-.login-card form,
-.login-card button,
-.login-card input,
-.login-card a,
-.login-card label,
-.login-card select,
-.login-card textarea,
-.login-card .toggle-password { pointer-events: auto; }
 html[data-theme="dark"] .login-card {
   background: rgba(26,37,60,.95);
   color: var(--ink);
