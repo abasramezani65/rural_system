@@ -161,9 +161,7 @@ function bindLogin() {
     });
   }
 
-  // Make brand image and login card draggable
-  makeDraggable(document.getElementById('loginBrandWrap'), 'loginBrandPos');
-  makeDraggable(document.getElementById('loginCard'), 'loginCardPos');
+  // Drag disabled per user request (fixed layout)
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
