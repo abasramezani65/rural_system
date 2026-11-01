@@ -1,1314 +1,1052 @@
-/* Rural Services System - Frontend Application */
-'use strict';
+/* Rural Services System - Modern Stylesheet */
+/* Font: Vazirmatn from CDN */
+@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
 
-const State = {
-  user: null,
-  roles: [],
-  services: [],
-  provinces: [],
-  records: [],
-  announcements: [],
-  customFields: [],
-  coreFields: [],
-  settings: {},
-  geoCatalog: [],
-  users: [],
-  loginAnnouncements: [],
-  loginBanners: [],
-  loginAnnouncementsAll: [],
-  loginBannersAll: [],
-  editingUserId: null,
-  editingRecordId: null,
-  charts: {},
-};
-
-const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-// ----- HTTP helpers -----
-async function api(path, opts = {}) {
-  const cfg = {
-    method: opts.method || 'GET',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-  };
-  if (opts.body) cfg.body = JSON.stringify(opts.body);
-  const resp = await fetch(path, cfg);
-  let data;
-  try { data = await resp.json(); } catch (e) { data = {}; }
-  if (!resp.ok) {
-    throw new Error(data.error || `HTTP ${resp.status}`);
-  }
-  return data;
+:root {
+  --navy: #1e2b4f;
+  --navy-light: #2d3f6e;
+  --blue: #3b5998;
+  --gold: #d59a19;
+  --gold-light: #f0b040;
+  --bg: #f4f6fa;
+  --bg-alt: #eef1f7;
+  --ink: #1e2637;
+  --ink-soft: #3a4258;
+  --muted: #6b7280;
+  --line: #dfe4ee;
+  --line-soft: #e9edf5;
+  --white: #ffffff;
+  --green: #15803d;
+  --green-bg: #dcfce7;
+  --red: #b91c1c;
+  --red-bg: #fee2e2;
+  --shadow-sm: 0 1px 2px rgba(30,43,79,.04), 0 1px 3px rgba(30,43,79,.06);
+  --shadow-md: 0 4px 12px rgba(30,43,79,.08), 0 2px 4px rgba(30,43,79,.04);
+  --shadow-lg: 0 12px 32px rgba(30,43,79,.12), 0 4px 12px rgba(30,43,79,.06);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --font: 'Vazirmatn', 'Tahoma', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-// ----- Toast notifications -----
-function toast(msg, type = 'success') {
-  const c = document.getElementById('toastContainer');
-  const el = document.createElement('div');
-  el.className = 'toast ' + type;
-  el.textContent = msg;
-  c.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
+/* Dark theme */
+html[data-theme="dark"] {
+  --navy: #c5d0f0;
+  --navy-light: #a9b8e0;
+  --blue: #8eaaf5;
+  --bg: #0f1729;
+  --bg-alt: #18223a;
+  --ink: #e6ebf5;
+  --ink-soft: #c1cadd;
+  --muted: #8b94ac;
+  --line: #2a3654;
+  --line-soft: #212c47;
+  --white: #1a253c;
+  --green-bg: #0d3322;
+  --red-bg: #3b1717;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.4);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.5);
 }
 
-// ----- Theme management -----
-function getStoredTheme() { return localStorage.getItem('rural_theme') || 'light'; }
-function setStoredTheme(t) { localStorage.setItem('rural_theme', t); }
-function applyTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
-  document.querySelectorAll('.theme-toggle').forEach(btn => {
-    if (btn) btn.textContent = t === 'dark' ? '☀️ روشن' : '🌙 تاریک';
-  });
-}
-function toggleTheme() {
-  const current = getStoredTheme();
-  const next = current === 'dark' ? 'light' : 'dark';
-  setStoredTheme(next);
-  applyTheme(next);
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  font-family: var(--font);
+  color: var(--ink);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background .25s ease, color .25s ease;
 }
 
-// ----- Login announcements & banners rendering on login page -----
-function renderLoginAnnouncementsAndBanners() {
-  const annList = document.getElementById('loginAnnouncementList');
-  const bannerContainer = document.getElementById('loginBannerContainer');
-  if (!annList || !bannerContainer) return;
-
-  const anns = State.loginAnnouncements || [];
-  annList.innerHTML = anns.map(a =>
-    `<div class="login-announcement-item ${a.festive ? 'festive' : ''}">${esc(a.text)}</div>`
-  ).join('');
-
-  const banners = State.loginBanners || [];
-  bannerContainer.innerHTML = banners.map(b => {
-    const src = `data:${b.image_mime};base64,${b.image_data}`;
-    if (b.link_url) {
-      return `<a href="${esc(b.link_url)}" target="_blank" rel="noopener" title="${esc(b.title)}"><img src="${src}" alt="${esc(b.title)}"></a>`;
-    }
-    return `<img src="${src}" alt="${esc(b.title)}" title="${esc(b.title)}">`;
-  }).join('');
+/* ===== HEADER ===== */
+header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+  color: white;
+  padding: 22px max(18px, calc((100% - 1180px)/2));
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
 }
 
-// ----- Draggable element helper -----
-function makeDraggable(element, storageKey) {
-  if (!element) return;
-  let isDragging = false;
-  let startX = 0, startY = 0;
-  let elemX = 0, elemY = 0;
-
-  // Restore saved position
-  const saved = localStorage.getItem(storageKey);
-  if (saved) {
-    try {
-      const pos = JSON.parse(saved);
-      if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
-        applyPosition(pos.x, pos.y);
-      }
-    } catch (e) {}
-  }
-
-  function applyPosition(x, y) {
-    elemX = x;
-    elemY = y;
-    element.style.transform = `translate(${x}px, ${y}px)`;
-  }
-
-  function pointerDown(e) {
-    // Don't start drag if clicking on form elements / links / images inside the card
-    if (e.target.closest('input, button, a, label, select, textarea, .toggle-password, img')) return;
-    isDragging = true;
-    element.classList.add('dragging');
-    const pt = e.touches ? e.touches[0] : e;
-    startX = pt.clientX;
-    startY = pt.clientY;
-    e.preventDefault();
-  }
-
-  function pointerMove(e) {
-    if (!isDragging) return;
-    const pt = e.touches ? e.touches[0] : e;
-    const dx = pt.clientX - startX;
-    const dy = pt.clientY - startY;
-    applyPosition(elemX + dx, elemY + dy);
-    e.preventDefault();
-  }
-
-  function pointerUp() {
-    if (!isDragging) return;
-    isDragging = false;
-    element.classList.remove('dragging');
-    localStorage.setItem(storageKey, JSON.stringify({ x: elemX, y: elemY }));
-  }
-
-  element.addEventListener('mousedown', pointerDown);
-  element.addEventListener('touchstart', pointerDown, { passive: false });
-  window.addEventListener('mousemove', pointerMove);
-  window.addEventListener('touchmove', pointerMove, { passive: false });
-  window.addEventListener('mouseup', pointerUp);
-  window.addEventListener('touchend', pointerUp);
+html[data-theme="dark"] header {
+  background: linear-gradient(135deg, #131c3a 0%, #1f2a52 100%);
 }
 
-// ----- Login -----
-function bindLogin() {
-  applyTheme(getStoredTheme());
-
-  // Toggle password visibility
-  const toggleBtn = document.getElementById('togglePassword');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      const inp = document.getElementById('loginPassword');
-      inp.type = inp.type === 'password' ? 'text' : 'password';
-    });
-  }
-
-  // Drag disabled per user request (fixed layout)
-
-  document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    const errEl = document.getElementById('loginError');
-    errEl.textContent = '';
-    const btn = document.getElementById('loginSubmitButton');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="loader" style="border-color:rgba(255,255,255,.4);border-top-color:white"></span> در حال ورود...';
-    btn.disabled = true;
-    try {
-      const resp = await api('/api/login', { method: 'POST', body: { username, password } });
-      toast('خوش آمدید ' + resp.user.name);
-      await loadState();
-      showApp();
-    } catch (err) {
-      errEl.textContent = err.message;
-    } finally {
-      btn.innerHTML = originalText;
-      btn.disabled = false;
-    }
-  });
-
-  document.getElementById('loginForgotPassword').addEventListener('click', (e) => {
-    e.preventDefault();
-    toast('برای بازیابی گذرواژه با مدیر سامانه تماس بگیرید.', 'error');
-  });
+header::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -10%;
+  width: 60%; height: 200%;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.08), transparent 70%);
+  pointer-events: none;
 }
 
-async function logout() {
-  try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
-  State.user = null;
-  document.getElementById('loginOverlay').classList.remove('hidden');
-  document.getElementById('mainHeader').hidden = true;
-  document.getElementById('mainWrap').hidden = true;
-  document.getElementById('tickerShell').hidden = true;
-  // Reset login screen
-  renderLoginDesign();
+header h1 {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 28px);
+  font-weight: 700;
+  letter-spacing: -.02em;
 }
 
-// ----- State loading -----
-async function loadState() {
-  const data = await api('/api/state');
-  Object.assign(State, {
-    user: data.user || null,
-    roles: data.roles || [],
-    services: data.services || [],
-    provinces: data.provinces || [],
-    records: data.records || [],
-    announcements: data.announcements || [],
-    customFields: data.customFields || [],
-    coreFields: data.coreFields || [],
-    settings: data.settings || {},
-    geoCatalog: data.geoCatalog || [],
-    users: data.users || [],
-    loginAnnouncements: data.loginAnnouncements || [],
-    loginBanners: data.loginBanners || [],
-    loginAnnouncementsAll: data.loginAnnouncementsAll || [],
-    loginBannersAll: data.loginBannersAll || [],
-  });
-  renderLoginAnnouncementsAndBanners();
-  return data;
+header p {
+  margin: 6px 0 0;
+  color: #d4dff5;
+  font-size: 13px;
+  opacity: .92;
 }
 
-function showApp() {
-  document.getElementById('loginOverlay').classList.add('hidden');
-  document.getElementById('mainHeader').hidden = false;
-  document.getElementById('mainWrap').hidden = false;
-  document.getElementById('tickerShell').hidden = false;
-
-  // Theme toggle button
-  const themeBtn = document.getElementById('themeToggle');
-  if (themeBtn && !themeBtn._bound) {
-    themeBtn.addEventListener('click', toggleTheme);
-    themeBtn._bound = true;
-  }
-  applyTheme(getStoredTheme());
-
-  // Session bar
-  const sb = document.getElementById('sessionBar');
-  if (State.user) {
-    sb.hidden = false;
-    document.getElementById('sessionLabel').textContent = `${State.user.name} (${roleLabel(State.user.role)})`;
-    document.getElementById('logoutBtn').onclick = logout;
-  } else {
-    sb.hidden = true;
-  }
-
-  // Admin tab visibility
-  const adminTab = document.getElementById('adminTab');
-  adminTab.hidden = State.user?.role !== 'national';
-
-  // Bind collapsible cards
-  document.querySelectorAll('.card.collapsible .card-header').forEach(h => {
-    if (h._bound) return;
-    h._bound = true;
-    h.addEventListener('click', () => h.parentElement.classList.toggle('collapsed'));
-  });
-
-  renderAll();
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: 1180px;
+  margin: auto;
+  position: relative;
+  padding-left: 90px; /* space for theme toggle button */
 }
 
-function roleLabel(r) {
-  return { national: 'کشوری', provincial: 'استانی', county: 'شهرستانی' }[r] || r;
+.logo-slot {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+  border: 2px dashed rgba(255,255,255,.3);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(255,255,255,.08);
+  color: #eef2fb;
+  font-size: 11px;
+  text-align: center;
+  backdrop-filter: blur(4px);
 }
 
-// ----- Rendering -----
-function renderAll() {
-  renderBranding();
-  renderAnnouncementList();
-  renderBaseSelects();
-  renderAdminSectionList();
-  renderFilterServices();
-  renderFilterSelects();
-  renderUsersTable();
-  renderCustomFields();
-  renderRoles();
-  renderServicesAdmin();
-  renderGeoList();
-  renderRecords();
-  renderSummary();
-  updateDynamicFields();
-  renderLoginAnnouncementsAdmin();
-  renderLoginBannersAdmin();
-  renderLoginDesign();
+.logo-slot img { width: 100%; height: 100%; object-fit: contain; }
+
+.brand-title-wrap { min-width: 0; flex: 1; }
+
+.title-banner-wrap img {
+  display: block;
+  max-width: 100%;
+  max-height: 100px;
+  object-fit: contain;
+  margin: 6px 0;
 }
 
-function renderBranding() {
-  const s = State.settings;
-  document.getElementById('appTitle').textContent = s.title || 'سامانه پایش خدمات روستایی';
-  document.getElementById('appSubtitle').textContent = s.subtitle || '';
-  document.title = s.title || 'سامانه پایش خدمات روستایی';
-  // Logo / banner: not loaded as base64 in this version
+/* User chip */
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  font-size: 13px;
+  backdrop-filter: blur(6px);
 }
 
-function renderAnnouncementList() {
-  const list = document.getElementById('announcementList');
-  if (!State.announcements.length) {
-    list.innerHTML = '<div class="empty">اعلانی ثبت نشده است.</div>';
-  } else {
-    list.innerHTML = '<table><thead><tr><th>متن</th><th>عملیات</th></tr></thead><tbody>' +
-      State.announcements.map(a => `<tr><td>${esc(a.text)}</td><td><button class="small danger" data-del-an="${a.id}">حذف</button></td></tr>`).join('') +
-      '</tbody></table>';
-  }
-  list.querySelectorAll('[data-del-an]').forEach(btn => {
-    btn.onclick = async () => {
-      try {
-        await api(`/api/announcements/${btn.dataset.delAn}`, { method: 'DELETE' });
-        State.announcements = State.announcements.filter(a => a.id !== btn.dataset.delAn);
-        renderAnnouncementList();
-        renderTicker();
-        toast('اعلان حذف شد.');
-      } catch (e) { toast(e.message, 'error'); }
-    };
-  });
-  renderTicker();
+.user-chip button {
+  background: rgba(255,255,255,.18);
+  color: white;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 999px;
 }
 
-function renderTicker() {
-  const t = document.getElementById('tickerTrack');
-  t.textContent = State.announcements.length ? State.announcements.map(a => a.text).join('   •   ') : 'اعلانی موجود نیست';
+.user-chip button:hover { background: rgba(255,255,255,.28); }
+
+/* Theme toggle button in header */
+.theme-toggle {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  z-index: 10;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.2);
+  color: white;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(6px);
+  transition: background .2s;
 }
 
-function renderBaseSelects() {
-  // Roles
-  const roleSel = document.getElementById('expertRole');
-  roleSel.innerHTML = '<option value="">انتخاب سمت</option>' +
-    State.roles.filter(r => r.active).map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
-  // Services
-  const svcSel = document.getElementById('service');
-  svcSel.innerHTML = '<option value="">انتخاب خدمت</option>' +
-    State.services.filter(s => s.active).map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-  // Provinces
-  const provSel = document.getElementById('province');
-  provSel.innerHTML = '<option value="">انتخاب استان</option>' +
-    State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-  // Reset county
-  fillCountySelect();
-  // User form
-  renderUserCountySelects();
-  // Province for county
-  const pfc = document.getElementById('provinceForCounty');
-  if (pfc) pfc.innerHTML = '<option value="">انتخاب استان</option>' +
-    State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+.theme-toggle:hover { background: rgba(255,255,255,.28); }
+
+/* ===== TICKER ===== */
+.ticker-shell {
+  background: linear-gradient(90deg, #fff7df, #ffeec2);
+  border-bottom: 1px solid #f0dda1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px max(14px, calc((100% - 1180px)/2));
+  overflow: hidden;
 }
 
-function fillCountySelect() {
-  const provId = document.getElementById('province').value;
-  const csel = document.getElementById('county');
-  const prov = State.provinces.find(p => p.id === provId);
-  csel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
-    (prov ? prov.counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+html[data-theme="dark"] .ticker-shell {
+  background: linear-gradient(90deg, #2a2410, #38320e);
+  border-bottom-color: #5a4a18;
 }
 
-function renderFilterSelects() {
-  const fp = document.getElementById('filterProvince');
-  fp.innerHTML = '<option value="">همه استان‌ها</option>' +
-    State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-  const fc = document.getElementById('filterCounty');
-  const pid = fp.value;
-  const prov = State.provinces.find(p => p.id === pid);
-  fc.innerHTML = '<option value="">همه شهرستان‌ها</option>' +
-    (prov ? prov.counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+.ticker-label {
+  font-weight: 700;
+  white-space: nowrap;
+  color: #72500b;
+  font-size: 12px;
+  padding: 4px 10px;
+  background: rgba(213,154,25,.18);
+  border-radius: 999px;
 }
 
-function renderFilterServices() {
-  const el = document.getElementById('filterServices');
-  el.innerHTML = State.services.filter(s => s.active).map(s =>
-    `<label class="check"><input type="checkbox" value="${s.id}"> ${esc(s.name)}</label>`
-  ).join('') || '<div class="empty">خدمتی تعریف نشده</div>';
+html[data-theme="dark"] .ticker-label { color: #f0b040; background: rgba(213,154,25,.12); }
+
+.ticker-window { overflow: hidden; white-space: nowrap; flex: 1; }
+
+.ticker-track {
+  display: inline-block;
+  min-width: 100%;
+  animation: tickerMove 28s linear infinite;
+  color: #4d3c12;
+  font-size: 13px;
 }
 
-function renderAdminSectionList() {
-  const el = document.getElementById('adminSectionList');
-  if (!el) return;
-  const sections = [
-    { id: 'accessManagementCard', label: 'مدیریت کاربران' },
-  ];
-  const collapsibles = document.querySelectorAll('#admin .card.collapsible');
-  el.innerHTML = '';
-  collapsibles.forEach((card, i) => {
-    const h2 = card.querySelector('.card-header h2');
-    if (!h2) return;
-    const link = document.createElement('div');
-    link.className = 'admin-section-link';
-    link.innerHTML = `<span>${h2.textContent}</span><span class="arrow">←</span>`;
-    link.onclick = () => {
-      card.classList.remove('collapsed');
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // Close others
-      collapsibles.forEach(c => { if (c !== card) c.classList.add('collapsed'); });
-    };
-    el.appendChild(link);
-  });
+html[data-theme="dark"] .ticker-track { color: #d4c088; }
+
+.ticker-window:hover .ticker-track { animation-play-state: paused; }
+
+@keyframes tickerMove {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
 
-// ----- Records rendering -----
-function scopedRecords() {
-  if (!State.user) return [];
-  if (State.user.role === 'national') return State.records;
-  if (State.user.role === 'provincial') return State.records.filter(r => r.province_id === State.user.province_id);
-  if (State.user.role === 'county') return State.records.filter(r => r.province_id === State.user.province_id && r.county_id === State.user.county_id);
-  return [];
+/* ===== LAYOUT ===== */
+.wrap {
+  max-width: 1180px;
+  margin: 20px auto;
+  padding: 0 14px;
 }
 
-function renderRecords() {
-  const recs = scopedRecords();
-  document.getElementById('recordCount').textContent = fa(recs.length) + ' رکورد';
-  const el = document.getElementById('recordsTable');
-  if (!recs.length) {
-    el.innerHTML = '<div class="empty">هنوز خدمتی ثبت نشده است.</div>';
-    return;
-  }
-  el.innerHTML = '<table><thead><tr><th>کارشناس / سمت</th><th>موقعیت</th><th>خدمت</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>' +
-    recs.map(r => `<tr>
-      <td>${esc(r.expert_name || '—')}<br><span class="hint">${esc(r.role_name || '')}</span></td>
-      <td>${esc(r.province_name || '')} / ${esc(r.county_name || '')} / ${esc(r.village || '')}</td>
-      <td>${esc(r.service_name || '')}<br><span class="hint">${esc(r.description || '')}</span></td>
-      <td>${esc(r.service_date || '—')}</td>
-      <td>
-        <button class="small secondary" data-edit="${r.id}">ویرایش</button>
-        <button class="small danger" data-del="${r.id}">حذف</button>
-      </td>
-    </tr>`).join('') +
-    '</tbody></table>';
-  el.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editRecord(b.dataset.edit));
-  el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteRecord(b.dataset.del));
+.nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  background: var(--white);
+  padding: 8px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--line);
 }
 
-function resetForm() {
-  document.getElementById('recordForm').reset();
-  document.getElementById('editId').value = '';
-  document.getElementById('saveBtn').textContent = 'ثبت خدمت';
-  State.editingRecordId = null;
-  fillCountySelect();
+.tab {
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink-soft);
+  transition: all .2s;
+  position: relative;
 }
 
-function editRecord(id) {
-  const r = State.records.find(x => x.id === id);
-  if (!r) return;
-  document.getElementById('editId').value = r.id;
-  State.editingRecordId = r.id;
-  document.getElementById('expertName').value = r.expert_name || '';
-  document.getElementById('expertRole').value = r.role_id || '';
-  document.getElementById('org').value = r.org || '';
-  document.getElementById('province').value = r.province_id || '';
-  fillCountySelect();
-  document.getElementById('county').value = r.county_id || '';
-  document.getElementById('village').value = r.village || '';
-  document.getElementById('service').value = r.service_id || '';
-  document.getElementById('serviceDate').value = r.service_date || '';
-  document.getElementById('beneficiaries').value = r.beneficiaries || '';
-  document.getElementById('description').value = r.description || '';
-  document.getElementById('evidence').value = r.evidence || '';
-  // Switch to register tab
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'register'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'register'));
-  document.getElementById('saveBtn').textContent = 'به‌روزرسانی خدمت';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+.tab:hover { background: var(--bg-alt); color: var(--ink); }
+
+.tab.active {
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  color: white;
+  box-shadow: var(--shadow-sm);
 }
 
-async function deleteRecord(id) {
-  if (!confirm('این رکورد حذف شود؟')) return;
-  try {
-    await api(`/api/records/${id}`, { method: 'DELETE' });
-    State.records = State.records.filter(r => r.id !== id);
-    renderRecords();
-    renderSummary();
-    toast('رکورد حذف شد.');
-  } catch (e) { toast(e.message, 'error'); }
+html[data-theme="dark"] .tab.active {
+  background: linear-gradient(135deg, #131c3a, #1f2a52);
 }
 
-// ----- Summary & charts -----
-function getFilteredGroups() {
-  const checkedSvc = Array.from(document.querySelectorAll('#filterServices input:checked')).map(c => c.value);
-  const fp = document.getElementById('filterProvince').value;
-  const fc = document.getElementById('filterCounty').value;
-  const mode = document.getElementById('filterMode').value;
-  let recs = scopedRecords();
-  if (fp) recs = recs.filter(r => r.province_id === fp);
-  if (fc) recs = recs.filter(r => r.county_id === fc);
-  if (checkedSvc.length) {
-    if (mode === 'all') {
-      recs = recs.filter(r => checkedSvc.includes(r.service_id));
-      // group by village; village must have all selected services
-      const byV = {};
-      recs.forEach(r => {
-        const k = r.village + '|' + r.province_id + '|' + r.county_id;
-        if (!byV[k]) byV[k] = { village: r.village, province_id: r.province_id, county_id: r.county_id, records: [], services: new Set() };
-        byV[k].records.push(r);
-        byV[k].services.add(r.service_id);
-      });
-      return Object.values(byV).filter(g => checkedSvc.every(s => g.services.has(s)));
-    } else {
-      // any mode: just filter
-      const byV = {};
-      recs.forEach(r => {
-        const k = r.village + '|' + r.province_id + '|' + r.county_id;
-        if (!byV[k]) byV[k] = { village: r.village, province_id: r.province_id, county_id: r.county_id, records: [], services: new Set() };
-        byV[k].records.push(r);
-        byV[k].services.add(r.service_id);
-      });
-      return Object.values(byV);
-    }
-  }
-  // No service filter: group all by village
-  const byV = {};
-  recs.forEach(r => {
-    const k = r.village + '|' + r.province_id + '|' + r.county_id;
-    if (!byV[k]) byV[k] = { village: r.village, province_id: r.province_id, county_id: r.county_id, records: [], services: new Set() };
-    byV[k].records.push(r);
-    byV[k].services.add(r.service_id);
-  });
-  return Object.values(byV);
+/* ===== PANELS & CARDS ===== */
+.panel { display: none; }
+.panel.active { display: block; animation: fadeIn .3s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-function renderSummary() {
-  const groups = getFilteredGroups();
-  const totalRecords = groups.reduce((n, g) => n + g.records.length, 0);
-  const beneficiaries = groups.reduce((n, g) => n + g.records.reduce((a, r) => a + Number(r.beneficiaries || 0), 0), 0);
-  const provinces = new Set(groups.flatMap(g => g.records.map(r => r.province_id))).size;
-  document.getElementById('statVillages').textContent = fa(groups.length);
-  document.getElementById('statServices').textContent = fa(totalRecords);
-  document.getElementById('statBeneficiaries').textContent = fa(beneficiaries);
-  document.getElementById('statProvinces').textContent = fa(provinces);
-
-  const el = document.getElementById('summaryResults');
-  if (!groups.length) {
-    el.innerHTML = '<div class="empty">موردی مطابق فیلتر انتخاب‌شده وجود ندارد.</div>';
-  } else {
-    el.innerHTML = '<table><thead><tr><th>استان</th><th>شهرستان</th><th>روستا</th><th>خدمات</th><th>تعداد</th><th>شرح</th></tr></thead><tbody>' +
-      groups.map(g => {
-        const r = g.records[0];
-        const services = Array.from(g.services).map(id => State.services.find(s => s.id === id)?.name || '—');
-        const dates = g.records.map(x => x.service_date).filter(Boolean).sort();
-        return `<tr>
-          <td>${esc(r.province_name || '')}</td>
-          <td>${esc(r.county_name || '')}</td>
-          <td><b>${esc(r.village || '')}</b></td>
-          <td>${services.map(s => `<span class="badge">${esc(s)}</span>`).join(' ')}</td>
-          <td>${fa(g.records.length)}</td>
-          <td>${esc(g.records.map(x => x.description).filter(Boolean).join(' | ') || '—')}<br><span class="hint">${esc(dates[dates.length-1] || '')}</span></td>
-        </tr>`;
-      }).join('') +
-      '</tbody></table>';
-  }
-
-  renderCharts();
+.card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .2s;
 }
 
-function renderCharts() {
-  const recs = scopedRecords();
-  // Service distribution
-  const svcCounts = {};
-  recs.forEach(r => {
-    const name = r.service_name || 'نامشخص';
-    svcCounts[name] = (svcCounts[name] || 0) + 1;
-  });
-  // Province distribution
-  const provCounts = {};
-  recs.forEach(r => {
-    const name = r.province_name || 'نامشخص';
-    provCounts[name] = (provCounts[name] || 0) + 1;
-  });
+.card:hover { box-shadow: var(--shadow-md); }
 
-  const colors = ['#1e2b4f', '#3b5998', '#d59a19', '#15803d', '#b91c1c', '#7c3aed', '#0891b2', '#be185d', '#c2410c', '#4d7c0f'];
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#c1cadd' : '#3a4258';
-  const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
-
-  Chart.defaults.font.family = "'Vazirmatn','Tahoma',sans-serif";
-  Chart.defaults.color = textColor;
-
-  // Service chart (bar)
-  const svcCanvas = document.getElementById('chartServices');
-  if (svcCanvas) {
-    if (State.charts.services) State.charts.services.destroy();
-    State.charts.services = new Chart(svcCanvas, {
-      type: 'bar',
-      data: {
-        labels: Object.keys(svcCounts),
-        datasets: [{ label: 'تعداد', data: Object.values(svcCounts), backgroundColor: colors.slice(0, Object.keys(svcCounts).length) }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } }, x: { grid: { display: false } } }
-      }
-    });
-  }
-
-  // Province chart (doughnut)
-  const provCanvas = document.getElementById('chartProvinces');
-  if (provCanvas) {
-    if (State.charts.provinces) State.charts.provinces.destroy();
-    State.charts.provinces = new Chart(provCanvas, {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(provCounts),
-        datasets: [{ data: Object.values(provCounts), backgroundColor: colors.slice(0, Object.keys(provCounts).length) }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } } }
-      }
-    });
-  }
+.card.collapsible .card-header {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: -22px -22px 16px;
+  padding: 16px 22px;
+  background: var(--bg-alt);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: 1px solid var(--line);
+  transition: background .2s;
+  user-select: none;
 }
 
-// ----- Admin: roles -----
-function renderRoles() {
-  const el = document.getElementById('roleList');
-  if (!State.roles.length) { el.innerHTML = '<div class="empty">سمتی تعریف نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>عنوان</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
-    State.roles.map(r => `<tr>
-      <td>${esc(r.name)}</td>
-      <td>${r.active ? 'فعال' : 'غیرفعال'}</td>
-      <td>
-        <button class="small secondary" data-toggle-role="${r.id}" data-active="${r.active ? 0 : 1}">${r.active ? 'غیرفعال' : 'فعال'}</button>
-        <button class="small danger" data-del-role="${r.id}">حذف</button>
-      </td>
-    </tr>`).join('') + '</tbody></table>';
-  el.querySelectorAll('[data-toggle-role]').forEach(b => b.onclick = async () => {
-    try {
-      await api(`/api/roles/${b.dataset.toggleRole}`, { method: 'POST', body: { active: b.dataset.active === '1' } });
-      const r = State.roles.find(x => x.id === b.dataset.toggleRole);
-      if (r) r.active = b.dataset.active === '1';
-      renderRoles();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-del-role]').forEach(b => b.onclick = async () => {
-    if (!confirm('حذف شود؟')) return;
-    try {
-      await api(`/api/roles/${b.dataset.delRole}`, { method: 'DELETE' });
-      State.roles = State.roles.filter(r => r.id !== b.dataset.delRole);
-      renderRoles();
-      renderBaseSelects();
-      toast('سمت حذف شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
+.card.collapsible .card-header:hover { background: var(--line-soft); }
+
+.card.collapsible .card-header h2 { margin: 0; font-size: 17px; }
+
+.card.collapsible .chevron {
+  font-size: 18px;
+  color: var(--muted);
+  transition: transform .25s;
 }
 
-// ----- Admin: services -----
-function renderServicesAdmin() {
-  const el = document.getElementById('serviceListAdmin');
-  if (!State.services.length) { el.innerHTML = '<div class="empty">خدمتی تعریف نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>عنوان</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
-    State.services.map(s => `<tr>
-      <td>${esc(s.name)}</td>
-      <td>${s.active ? 'فعال' : 'غیرفعال'}</td>
-      <td>
-        <button class="small secondary" data-toggle-svc="${s.id}" data-active="${s.active ? 0 : 1}">${s.active ? 'غیرفعال' : 'فعال'}</button>
-        <button class="small danger" data-del-svc="${s.id}">حذف</button>
-      </td>
-    </tr>`).join('') + '</tbody></table>';
-  el.querySelectorAll('[data-toggle-svc]').forEach(b => b.onclick = async () => {
-    try {
-      await api(`/api/services/${b.dataset.toggleSvc}`, { method: 'POST', body: { active: b.dataset.active === '1' } });
-      const s = State.services.find(x => x.id === b.dataset.toggleSvc);
-      if (s) s.active = b.dataset.active === '1';
-      renderServicesAdmin();
-      renderBaseSelects();
-      renderFilterServices();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-del-svc]').forEach(b => b.onclick = async () => {
-    if (!confirm('حذف شود؟')) return;
-    try {
-      await api(`/api/services/${b.dataset.delSvc}`, { method: 'DELETE' });
-      State.services = State.services.filter(s => s.id !== b.dataset.delSvc);
-      renderServicesAdmin();
-      renderBaseSelects();
-      renderFilterServices();
-      toast('خدمت حذف شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
+.card.collapsible.collapsed .card-header { border-radius: var(--radius-lg); }
+.card.collapsible.collapsed .card-body { display: none; }
+.card.collapsible.collapsed .chevron { transform: rotate(-90deg); }
+
+.card-body { animation: fadeIn .2s ease; }
+
+h2 {
+  font-size: 19px;
+  margin: 0 0 14px;
+  color: var(--navy);
+  font-weight: 700;
+  letter-spacing: -.01em;
 }
 
-// ----- Admin: provinces & counties -----
-function renderGeoList() {
-  const el = document.getElementById('geoList');
-  if (!State.provinces.length) { el.innerHTML = '<div class="empty">استانی تعریف نشده</div>'; return; }
-  el.innerHTML = State.provinces.map(p => `<div style="margin-bottom:10px;padding:10px;background:var(--bg-alt);border-radius:8px">
-    <b>${esc(p.name)}</b>
-    <button class="small danger" style="float:left" data-del-prov="${p.id}">حذف استان</button>
-    <div style="margin-top:6px">${p.counties.length ? p.counties.map(c => `<span class="badge">${esc(c.name)} <button data-del-county="${c.id}" style="background:none;border:0;color:inherit;cursor:pointer;padding:0 2px">×</button></span>`).join(' ') : '<span class="hint">شهرستانی ثبت نشده</span>'}</div>
-  </div>`).join('');
-  el.querySelectorAll('[data-del-prov]').forEach(b => b.onclick = async () => {
-    if (!confirm('استان و تمام شهرستان‌های آن حذف شود؟')) return;
-    try {
-      await api(`/api/provinces/${b.dataset.delProv}`, { method: 'DELETE' });
-      State.provinces = State.provinces.filter(p => p.id !== b.dataset.delProv);
-      renderGeoList();
-      renderBaseSelects();
-      renderFilterSelects();
-      toast('استان حذف شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-del-county]').forEach(b => b.onclick = async (e) => {
-    e.stopPropagation();
-    if (!confirm('شهرستان حذف شود؟')) return;
-    try {
-      await api(`/api/counties/${b.dataset.delCounty}`, { method: 'DELETE' });
-      // Remove from local state
-      State.provinces.forEach(p => { p.counties = p.counties.filter(c => c.id !== b.dataset.delCounty); });
-      renderGeoList();
-      renderBaseSelects();
-      renderFilterSelects();
-      toast('شهرستان حذف شد.');
-    } catch (err) { toast(err.message, 'error'); }
-  });
+h3 {
+  font-size: 15px;
+  margin: 16px 0 8px;
+  color: var(--navy);
+  font-weight: 600;
 }
 
-// ----- Admin: custom fields -----
-function renderCustomFields() {
-  const el = document.getElementById('customFieldsList');
-  if (!State.customFields.length) { el.innerHTML = '<div class="empty">فیلد سفارشی ثبت نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>عنوان</th><th>نوع</th><th>عملیات</th></tr></thead><tbody>' +
-    State.customFields.map(f => `<tr>
-      <td>${esc(f.label)}</td>
-      <td>${typeLabel(f.type)}</td>
-      <td><button class="small danger" data-del-cf="${f.id}">حذف</button></td>
-    </tr>`).join('') + '</tbody></table>';
-  el.querySelectorAll('[data-del-cf]').forEach(b => b.onclick = async () => {
-    if (!confirm('حذف شود؟')) return;
-    try {
-      await api(`/api/custom-fields/${b.dataset.delCf}`, { method: 'DELETE' });
-      State.customFields = State.customFields.filter(f => f.id !== b.dataset.delCf);
-      renderCustomFields();
-      updateDynamicFields();
-    } catch (e) { toast(e.message, 'error'); }
-  });
+/* ===== FORMS ===== */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-// ----- Admin: Login announcements -----
-function renderLoginAnnouncementsAdmin() {
-  const el = document.getElementById('loginAnnouncementsAdminList');
-  if (!el) return;
-  const list = State.loginAnnouncementsAll || [];
-  if (!list.length) { el.innerHTML = '<div class="empty">اعلانی ثبت نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>متن</th><th>نوع</th><th>ترتیب</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
-    list.map(a => `<tr>
-      <td>${esc(a.text)}</td>
-      <td>${a.festive ? 'مناسبی' : 'معمولی'}</td>
-      <td>${fa(a.sort_order || 0)}</td>
-      <td>${a.active ? 'فعال' : 'غیرفعال'}</td>
-      <td>
-        <button class="small secondary" data-toggle-la="${a.id}" data-active="${a.active ? 0 : 1}">${a.active ? 'غیرفعال‌کن' : 'فعال‌کن'}</button>
-        <button class="small danger" data-del-la="${a.id}">حذف</button>
-      </td>
-    </tr>`).join('') + '</tbody></table>';
-  el.querySelectorAll('[data-toggle-la]').forEach(b => b.onclick = async () => {
-    try {
-      await api(`/api/login-announcements/${b.dataset.toggleLa}`, { method: 'POST', body: { active: b.dataset.active === '1' } });
-      const a = State.loginAnnouncementsAll.find(x => x.id === b.dataset.toggleLa);
-      if (a) a.active = b.dataset.active === '1';
-      renderLoginAnnouncementsAdmin();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-del-la]').forEach(b => b.onclick = async () => {
-    if (!confirm('حذف شود؟')) return;
-    try {
-      await api(`/api/login-announcements/${b.dataset.delLa}`, { method: 'DELETE' });
-      State.loginAnnouncementsAll = State.loginAnnouncementsAll.filter(a => a.id !== b.dataset.delLa);
-      State.loginAnnouncements = State.loginAnnouncements.filter(a => a.id !== b.dataset.delLa);
-      renderLoginAnnouncementsAdmin();
-      renderLoginAnnouncementsAndBanners();
-      toast('اعلان حذف شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid.full { grid-template-columns: 1fr; }
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--ink-soft);
 }
 
-// ----- Admin: Login banners -----
-function renderLoginBannersAdmin() {
-  const el = document.getElementById('loginBannersAdminList');
-  if (!el) return;
-  const list = State.loginBannersAll || [];
-  if (!list.length) { el.innerHTML = '<div class="empty">بنری ثبت نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>پیش‌نمایش</th><th>عنوان</th><th>لینک</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
-    list.map(b => `<tr>
-      <td><img src="data:${b.image_mime};base64,${b.image_data}" style="max-width:90px;max-height:45px;border-radius:4px"></td>
-      <td>${esc(b.title || '—')}</td>
-      <td>${esc(b.link_url || '—')}</td>
-      <td>${b.active ? 'فعال' : 'غیرفعال'}</td>
-      <td>
-        <button class="small secondary" data-toggle-lb="${b.id}" data-active="${b.active ? 0 : 1}">${b.active ? 'غیرفعال‌کن' : 'فعال‌کن'}</button>
-        <button class="small danger" data-del-lb="${b.id}">حذف</button>
-      </td>
-    </tr>`).join('') + '</tbody></table>';
-  el.querySelectorAll('[data-toggle-lb]').forEach(b => b.onclick = async () => {
-    try {
-      await api(`/api/login-banners/${b.dataset.toggleLb}`, { method: 'POST', body: { active: b.dataset.active === '1' } });
-      const bn = State.loginBannersAll.find(x => x.id === b.dataset.toggleLb);
-      if (bn) bn.active = b.dataset.active === '1';
-      renderLoginBannersAdmin();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-del-lb]').forEach(b => b.onclick = async () => {
-    if (!confirm('بنر حذف شود؟')) return;
-    try {
-      await api(`/api/login-banners/${b.dataset.delLb}`, { method: 'DELETE' });
-      State.loginBannersAll = State.loginBannersAll.filter(x => x.id !== b.dataset.delLb);
-      State.loginBanners = State.loginBanners.filter(x => x.id !== b.dataset.delLb);
-      renderLoginBannersAdmin();
-      renderLoginAnnouncementsAndBanners();
-      toast('بنر حذف شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
+input, select, textarea {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  font: inherit;
+  background: var(--white);
+  color: var(--ink);
+  min-height: 44px;
+  transition: border-color .2s, box-shadow .2s;
 }
 
-function typeLabel(t) {
-  return { text: 'متن', number: 'عدد', date: 'تاریخ', url: 'لینک', textarea: 'متن تفصیلی' }[t] || t;
+textarea { min-height: 90px; resize: vertical; }
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59,89,152,.15);
 }
 
-function updateDynamicFields() {
-  const wrap = document.getElementById('dynamicRecordFields');
-  if (!State.customFields.length) { wrap.innerHTML = ''; return; }
-  wrap.innerHTML = State.customFields.map(f => {
-    const id = 'cf_' + f.id;
-    return `<div class="${f.type === 'textarea' ? 'wide' : ''}">
-      <label for="${id}">${esc(f.label)}</label>
-      ${f.type === 'textarea' ? `<textarea id="${id}" data-custom-id="${f.id}"></textarea>` :
-        `<input id="${id}" data-custom-id="${f.id}" type="${f.type === 'url' ? 'url' : f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}">`}
-    </div>`;
-  }).join('');
+input[type="checkbox"], input[type="radio"] {
+  width: auto;
+  min-height: auto;
+  margin: 0 6px 0 0;
 }
 
-// ----- Admin: users -----
-function renderUserCountySelects() {
-  const pSel = document.getElementById('userProvince');
-  if (!pSel) return;
-  pSel.innerHTML = '<option value="">انتخاب استان</option>' +
-    State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
+input[type="file"] { padding: 8px; }
+
+button {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 11px 18px;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  color: white;
+  transition: transform .12s, box-shadow .2s, opacity .2s;
+  box-shadow: var(--shadow-sm);
 }
 
-function fillUserCounties() {
-  const pid = document.getElementById('userProvince').value;
-  const cSel = document.getElementById('userCounty');
-  const prov = State.provinces.find(p => p.id === pid);
-  cSel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
-    (prov ? prov.counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+button:active { transform: translateY(0); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+button.secondary {
+  background: var(--line-soft);
+  color: var(--navy);
+  box-shadow: none;
 }
 
-function renderUsersTable() {
-  const el = document.getElementById('usersTable');
-  if (!State.users.length) { el.innerHTML = '<div class="empty">کاربری ثبت نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>نام</th><th>نام کاربری</th><th>سطح</th><th>محدوده</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
-    State.users.map(u => {
-      const prov = State.provinces.find(p => p.id === u.province_id);
-      const cnty = prov?.counties.find(c => c.id === u.county_id);
-      const scope = u.role === 'national' ? 'کشوری' : (prov ? prov.name + (cnty ? ' / ' + cnty.name : '') : '—');
-      return `<tr>
-        <td>${esc(u.name)}</td>
-        <td>${esc(u.username)}</td>
-        <td>${roleLabel(u.role)}</td>
-        <td>${esc(scope)}</td>
-        <td>${u.active ? 'فعال' : 'غیرفعال'}</td>
-        <td>
-          <button class="small secondary" data-edit-user="${u.id}">ویرایش</button>
-          <button class="small secondary" data-toggle-user="${u.id}" data-active="${u.active ? 0 : 1}">${u.active ? 'غیرفعال' : 'فعال'}</button>
-          ${u.id === 'u_admin_default' ? '' : `<button class="small danger" data-del-user="${u.id}">حذف</button>`}
-        </td>
-      </tr>`;
-    }).join('') + '</tbody></table>';
-  el.querySelectorAll('[data-edit-user]').forEach(b => b.onclick = () => editUser(b.dataset.editUser));
-  el.querySelectorAll('[data-toggle-user]').forEach(b => b.onclick = async () => {
-    try {
-      await api(`/api/users/${b.dataset.toggleUser}/toggle`, { method: 'POST', body: { active: b.dataset.active === '1' } });
-      const u = State.users.find(x => x.id === b.dataset.toggleUser);
-      if (u) u.active = b.dataset.active === '1';
-      renderUsersTable();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  el.querySelectorAll('[data-del-user]').forEach(b => b.onclick = async () => {
-    if (!confirm('کاربر حذف شود؟')) return;
-    try {
-      await api(`/api/users/${b.dataset.delUser}`, { method: 'DELETE' });
-      State.users = State.users.filter(u => u.id !== b.dataset.delUser);
-      renderUsersTable();
-      toast('کاربر حذف شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
+button.secondary:hover { background: var(--line); }
+
+button.gold {
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: #1f2635;
 }
 
-function editUser(id) {
-  const u = State.users.find(x => x.id === id);
-  if (!u) return;
-  State.editingUserId = id;
-  document.getElementById('userFullName').value = u.name;
-  document.getElementById('userUsername').value = u.username;
-  document.getElementById('userPassword').value = '';
-  document.getElementById('userRole').value = u.role;
-  document.getElementById('userProvince').value = u.province_id || '';
-  fillUserCounties();
-  document.getElementById('userCounty').value = u.county_id || '';
-  document.getElementById('saveUser').textContent = 'به‌روزرسانی کاربر';
-  document.getElementById('userRole').dispatchEvent(new Event('change'));
+button.danger {
+  background: var(--red-bg);
+  color: var(--red);
 }
 
-function resetUserForm() {
-  State.editingUserId = null;
-  document.getElementById('userFullName').value = '';
-  document.getElementById('userUsername').value = '';
-  document.getElementById('userPassword').value = '';
-  document.getElementById('userRole').value = 'national';
-  document.getElementById('userProvince').value = '';
-  fillUserCounties();
-  document.getElementById('saveUser').textContent = 'افزودن کاربر';
+button.danger:hover { background: #fecaca; }
+
+button.small { padding: 6px 12px; font-size: 12px; border-radius: var(--radius-sm); }
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
 }
 
-// ----- Login design rendering -----
-function renderLoginDesign() {
-  const s = State.settings || {};
-  // Title/subtitle/mark on the login page are hidden by user request — they appear in the background image
-  // Only update the demo text & login button label
-  const loginBtn = document.getElementById('loginSubmitButton');
-  if (loginBtn) {
-    const btnSpan = loginBtn.querySelector('span');
-    if (btnSpan) btnSpan.textContent = s.loginButton || 'ورود به سامانه';
-  }
-  const demoText = document.getElementById('loginDemoText');
-  if (demoText) demoText.textContent = s.loginDemoText || 'ورود با حساب آزمایشی';
-  const uLabel = document.getElementById('loginUsernameLabel');
-  if (uLabel) uLabel.textContent = s.loginUsernameLabel || 'نام کاربری';
-  const pLabel = document.getElementById('loginPasswordLabel');
-  if (pLabel) pLabel.textContent = s.loginPasswordLabel || 'رمز عبور';
-  const demoNotice = document.getElementById('loginDemoNotice');
-  if (demoNotice) demoNotice.style.display = s.showLoginDemoNotice ? '' : 'none';
-  // Fill admin form
-  if (document.getElementById('loginHeadingSetting')) {
-    document.getElementById('loginHeadingSetting').value = s.loginHeading || '';
-    document.getElementById('loginSubtitleSetting').value = s.loginSubtitle || '';
-    document.getElementById('loginButtonSetting').value = s.loginButton || '';
-    document.getElementById('loginUsernameLabelSetting').value = s.loginUsernameLabel || '';
-    document.getElementById('loginPasswordLabelSetting').value = s.loginPasswordLabel || '';
-    document.getElementById('loginDemoTextSetting').value = s.loginDemoText || '';
-    document.getElementById('loginContactTextSetting').value = s.loginContactText || '';
-    document.getElementById('loginContactUrlSetting').value = s.loginContactUrl || '';
-    document.getElementById('loginExtraSetting').value = s.loginExtra || '';
-    document.getElementById('loginBgSetting').value = s.loginBg || '#263b70';
-    document.getElementById('loginAccentSetting').value = s.loginAccent || '#3156a5';
-    document.getElementById('showLoginDemoNotice').checked = s.showLoginDemoNotice;
-  }
-  // Branding
-  if (document.getElementById('settingTitle')) {
-    document.getElementById('settingTitle').value = s.title || '';
-    document.getElementById('settingSubtitle').value = s.subtitle || '';
-    document.getElementById('evidenceEnabled').checked = s.evidenceEnabled !== false && s.evidenceEnabled !== '0';
-  }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
+.notice {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #fff7df, #ffefb8);
+  border: 1px solid #f0dda1;
+  font-size: 13px;
+  margin-bottom: 16px;
+  color: #72500b;
 }
 
-// ----- Init -----
-async function init() {
-  applyTheme(getStoredTheme());
-  bindLogin();
-  // Check if already logged in
-  try {
-    const data = await loadState();
-    if (data.authenticated) {
-      showApp();
-    } else {
-      renderLoginDesign();
-    }
-  } catch (e) {
-    console.error(e);
-    renderLoginDesign();
-  }
-
-  // Bind events
-  document.getElementById('province').addEventListener('change', fillCountySelect);
-  document.getElementById('filterProvince').addEventListener('change', renderFilterSelects);
-
-  document.getElementById('recordForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const province = State.provinces.find(p => p.id === document.getElementById('province').value);
-    const county = province?.counties.find(c => c.id === document.getElementById('county').value);
-    const role = State.roles.find(r => r.id === document.getElementById('expertRole').value);
-    const service = State.services.find(s => s.id === document.getElementById('service').value);
-    if (!province || !county || !role || !service || !document.getElementById('village').value.trim()) {
-      toast('لطفاً سمت، استان، شهرستان، روستا و خدمت را کامل کنید.', 'error');
-      return;
-    }
-    const customValues = {};
-    document.querySelectorAll('#dynamicRecordFields [data-custom-id]').forEach(el => {
-      customValues[el.dataset.customId] = el.value;
-    });
-    const payload = {
-      id: document.getElementById('editId').value || undefined,
-      expertName: document.getElementById('expertName').value.trim(),
-      roleId: role.id,
-      roleName: role.name,
-      org: document.getElementById('org').value.trim(),
-      provinceId: province.id,
-      provinceName: province.name,
-      countyId: county.id,
-      countyName: county.name,
-      village: document.getElementById('village').value.trim(),
-      serviceId: service.id,
-      serviceName: service.name,
-      serviceDate: document.getElementById('serviceDate').value.trim(),
-      beneficiaries: Number(document.getElementById('beneficiaries').value || 0),
-      description: document.getElementById('description').value.trim(),
-      evidence: document.getElementById('evidence').value.trim(),
-      customValues,
-    };
-    const btn = document.getElementById('saveBtn');
-    const orig = btn.textContent;
-    btn.textContent = 'در حال ذخیره...';
-    btn.disabled = true;
-    try {
-      const resp = await api('/api/records', { method: 'POST', body: payload });
-      payload.id = resp.id;
-      // Update local state
-      const idx = State.records.findIndex(r => r.id === resp.id);
-      const newRec = {
-        ...payload,
-        expert_name: payload.expertName,
-        role_id: payload.roleId, role_name: payload.roleName,
-        province_id: payload.provinceId, province_name: payload.provinceName,
-        county_id: payload.countyId, county_name: payload.countyName,
-        service_id: payload.serviceId, service_name: payload.serviceName,
-        service_date: payload.serviceDate, description: payload.description,
-        evidence: payload.evidence,
-      };
-      delete newRec.expertName; delete newRec.roleId; delete newRec.roleName;
-      delete newRec.provinceId; delete newRec.provinceName;
-      delete newRec.countyId; delete newRec.countyName;
-      delete newRec.serviceId; delete newRec.serviceName;
-      delete newRec.serviceDate;
-      if (idx >= 0) State.records[idx] = newRec;
-      else State.records.unshift(newRec);
-      resetForm();
-      renderRecords();
-      renderSummary();
-      toast('اطلاعات با موفقیت در پایگاه داده مرکزی ذخیره شد.');
-    } catch (err) {
-      toast(err.message, 'error');
-    } finally {
-      btn.textContent = orig;
-      btn.disabled = false;
-    }
-  });
-
-  document.getElementById('resetFormBtn').addEventListener('click', resetForm);
-
-  // Tabs
-  document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
-      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === t.dataset.tab));
-    });
-  });
-
-  // User form events
-  document.getElementById('userRole').addEventListener('change', () => {
-    const r = document.getElementById('userRole').value;
-    document.getElementById('userProvince').disabled = r === 'national';
-    document.getElementById('userCounty').disabled = r !== 'county';
-  });
-  document.getElementById('userProvince').addEventListener('change', fillUserCounties);
-
-  document.getElementById('saveUser').addEventListener('click', async () => {
-    const data = {
-      id: State.editingUserId,
-      name: document.getElementById('userFullName').value.trim(),
-      username: document.getElementById('userUsername').value.trim(),
-      password: document.getElementById('userPassword').value,
-      role: document.getElementById('userRole').value,
-      province_id: document.getElementById('userProvince').value || '',
-      county_id: document.getElementById('userCounty').value || '',
-    };
-    if (!data.name || !data.username) { toast('نام و نام کاربری الزامی است.', 'error'); return; }
-    if (!data.id && data.password.length < 8) { toast('گذرواژه باید حداقل ۸ نویسه باشد.', 'error'); return; }
-    try {
-      const resp = await api('/api/users', { method: 'POST', body: data });
-      // Refresh users
-      const state = await api('/api/state');
-      State.users = state.users || [];
-      renderUsersTable();
-      resetUserForm();
-      toast('کاربر ذخیره شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-  document.getElementById('cancelUserEdit').addEventListener('click', resetUserForm);
-
-  // Roles / services / provinces / counties
-  document.getElementById('addRole').addEventListener('click', async () => {
-    const name = document.getElementById('newRole').value.trim();
-    if (!name) return;
-    try {
-      const resp = await api('/api/roles', { method: 'POST', body: { name } });
-      State.roles.push({ id: resp.id, name, active: 1 });
-      document.getElementById('newRole').value = '';
-      renderRoles();
-      renderBaseSelects();
-      toast('سمت اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  document.getElementById('addService').addEventListener('click', async () => {
-    const name = document.getElementById('newService').value.trim();
-    if (!name) return;
-    try {
-      const resp = await api('/api/services', { method: 'POST', body: { name } });
-      State.services.push({ id: resp.id, name, active: 1 });
-      document.getElementById('newService').value = '';
-      renderServicesAdmin();
-      renderBaseSelects();
-      renderFilterServices();
-      toast('خدمت اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  document.getElementById('addProvince').addEventListener('click', async () => {
-    const name = document.getElementById('newProvince').value.trim();
-    if (!name) return;
-    try {
-      const resp = await api('/api/provinces', { method: 'POST', body: { name } });
-      State.provinces.push({ id: resp.id, name, counties: [] });
-      document.getElementById('newProvince').value = '';
-      renderGeoList();
-      renderBaseSelects();
-      renderFilterSelects();
-      renderUserCountySelects();
-      toast('استان اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  document.getElementById('addCounty').addEventListener('click', async () => {
-    const pid = document.getElementById('provinceForCounty').value;
-    const name = document.getElementById('newCounty').value.trim();
-    if (!pid || !name) { toast('استان و نام شهرستان الزامی است.', 'error'); return; }
-    try {
-      const resp = await api('/api/counties', { method: 'POST', body: { province_id: pid, name } });
-      const prov = State.provinces.find(p => p.id === pid);
-      if (prov) prov.counties.push({ id: resp.id, name });
-      document.getElementById('newCounty').value = '';
-      renderGeoList();
-      renderBaseSelects();
-      renderFilterSelects();
-      renderUserCountySelects();
-      toast('شهرستان اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  // Announcements
-  document.getElementById('addAnnouncement').addEventListener('click', async () => {
-    const text = document.getElementById('newAnnouncement').value.trim();
-    if (!text) return;
-    try {
-      const resp = await api('/api/announcements', { method: 'POST', body: { text } });
-      State.announcements.unshift({ id: resp.id, text, active: 1 });
-      document.getElementById('newAnnouncement').value = '';
-      renderAnnouncementList();
-      toast('اعلان اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  // Custom fields
-  document.getElementById('addCustomField').addEventListener('click', async () => {
-    const label = document.getElementById('newFieldLabel').value.trim();
-    if (!label) return;
-    const type = document.getElementById('newFieldType').value;
-    try {
-      const resp = await api('/api/custom-fields', { method: 'POST', body: { label, type, scope: 'all' } });
-      State.customFields.push({ id: resp.id, label, type, scope: 'all', active: 1 });
-      document.getElementById('newFieldLabel').value = '';
-      renderCustomFields();
-      updateDynamicFields();
-      toast('فیلد اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  // Login announcements
-  document.getElementById('addLoginAnnouncement').addEventListener('click', async () => {
-    const text = document.getElementById('newLoginAnnouncement').value.trim();
-    if (!text) return;
-    const festive = document.getElementById('newLoginAnnouncementFestive').value === '1';
-    const sort_order = parseInt(document.getElementById('newLoginAnnouncementOrder').value || '0', 10);
-    try {
-      const resp = await api('/api/login-announcements', { method: 'POST', body: { text, festive, sort_order } });
-      State.loginAnnouncementsAll.unshift({ id: resp.id, text, festive, active: 1, sort_order });
-      State.loginAnnouncements.unshift({ id: resp.id, text, festive, active: 1, sort_order });
-      document.getElementById('newLoginAnnouncement').value = '';
-      renderLoginAnnouncementsAdmin();
-      renderLoginAnnouncementsAndBanners();
-      toast('اعلان اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  // Login banners (file upload via base64)
-  document.getElementById('addLoginBanner').addEventListener('click', async () => {
-    const fileInput = document.getElementById('newLoginBannerFile');
-    if (!fileInput.files || !fileInput.files[0]) {
-      toast('یک فایل تصویر انتخاب کنید.', 'error');
-      return;
-    }
-    const file = fileInput.files[0];
-    const title = document.getElementById('newLoginBannerTitle').value;
-    const link_url = document.getElementById('newLoginBannerLink').value;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target.result;
-      const parts = dataUrl.split(',');
-      const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
-      const image_data = parts[1];
-      try {
-        const resp = await api('/api/login-banners', { method: 'POST', body: {
-          image_data, image_mime: mime, link_url, title, sort_order: 0
-        }});
-        State.loginBannersAll.unshift({ id: resp.id, image_data, image_mime: mime, link_url, title, active: 1, sort_order: 0 });
-        State.loginBanners.unshift({ id: resp.id, image_data, image_mime: mime, link_url, title, active: 1, sort_order: 0 });
-        fileInput.value = '';
-        document.getElementById('newLoginBannerTitle').value = '';
-        document.getElementById('newLoginBannerLink').value = '';
-        renderLoginBannersAdmin();
-        renderLoginAnnouncementsAndBanners();
-        toast('بنر اضافه شد.');
-      } catch (e) { toast(e.message, 'error'); }
-    };
-    reader.readAsDataURL(file);
-  });
-
-  // Branding
-  document.getElementById('saveBranding').addEventListener('click', async () => {
-    const data = {
-      title: document.getElementById('settingTitle').value,
-      subtitle: document.getElementById('settingSubtitle').value,
-    };
-    try {
-      await api('/api/settings', { method: 'POST', body: data });
-      Object.assign(State.settings, data);
-      renderBranding();
-      toast('تنظیمات ذخیره شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  // Login design
-  document.getElementById('saveLoginDesign').addEventListener('click', async () => {
-    const data = {
-      loginHeading: document.getElementById('loginHeadingSetting').value,
-      loginSubtitle: document.getElementById('loginSubtitleSetting').value,
-      loginButton: document.getElementById('loginButtonSetting').value,
-      loginUsernameLabel: document.getElementById('loginUsernameLabelSetting').value,
-      loginPasswordLabel: document.getElementById('loginPasswordLabelSetting').value,
-      loginDemoText: document.getElementById('loginDemoTextSetting').value,
-      loginContactText: document.getElementById('loginContactTextSetting').value,
-      loginContactUrl: document.getElementById('loginContactUrlSetting').value,
-      loginExtra: document.getElementById('loginExtraSetting').value,
-      loginBg: document.getElementById('loginBgSetting').value,
-      loginAccent: document.getElementById('loginAccentSetting').value,
-      showLoginDemoNotice: document.getElementById('showLoginDemoNotice').checked,
-    };
-    try {
-      await api('/api/settings', { method: 'POST', body: data });
-      Object.assign(State.settings, data);
-      renderLoginDesign();
-      toast('طراحی ورود ذخیره شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  // Evidence setting
-  document.getElementById('saveEvidenceSetting').addEventListener('click', async () => {
-    const enabled = document.getElementById('evidenceEnabled').checked;
-    try {
-      await api('/api/settings', { method: 'POST', body: { evidenceEnabled: enabled } });
-      State.settings.evidenceEnabled = enabled;
-      const wrap = document.getElementById('evidenceFieldWrap');
-      if (wrap) wrap.style.display = enabled ? '' : 'none';
-      toast('تنظیمات ذخیره شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  // Filters
-  document.getElementById('applyFilter').addEventListener('click', renderSummary);
-  document.getElementById('clearFilter').addEventListener('click', () => {
-    document.querySelectorAll('#filterServices input').forEach(c => c.checked = false);
-    document.getElementById('filterProvince').value = '';
-    renderFilterSelects();
-    document.getElementById('filterMode').value = 'all';
-    renderSummary();
-  });
-
-  // Export
-  document.getElementById('exportFiltered').addEventListener('click', () => {
-    const groups = getFilteredGroups();
-    const csv = '\ufeffکارشناس,سمت,استان,شهرستان,روستا,خدمت,تاریخ,بهرهمندان\n' +
-      groups.flatMap(g => g.records).map(r => [
-        r.expert_name, r.role_name, r.province_name, r.county_name, r.village,
-        r.service_name, r.service_date, r.beneficiaries
-      ].map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'rural_filtered.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  document.getElementById('exportAll').addEventListener('click', () => {
-    window.location.href = '/api/export/csv';
-  });
-
-  document.getElementById('backupJson').addEventListener('click', () => {
-    window.location.href = '/api/export/json';
-  });
+html[data-theme="dark"] .notice {
+  background: linear-gradient(135deg, #2a2410, #38300c);
+  border-color: #5a4a18;
+  color: #f0b040;
 }
 
-document.addEventListener('DOMContentLoaded', init);
+/* ===== STATS ===== */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  text-align: center;
+  transition: transform .2s, box-shadow .2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--navy), var(--blue));
+}
+
+.stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+.stat b {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.stat span { font-size: 12px; color: var(--muted); }
+
+/* ===== SERVICE LIST ===== */
+.service-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid var(--line);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  background: var(--white);
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.check:hover { border-color: var(--blue); background: var(--bg-alt); }
+
+.check input { width: auto; min-height: auto; }
+
+/* ===== TABLES ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th, td {
+  text-align: right;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  background: var(--bg-alt);
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+
+tr:hover td { background: var(--bg-alt); }
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  max-height: 600px;
+}
+
+.badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #eaf0fb, #d8e2f5);
+  color: #344b7b;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  margin: 2px;
+  font-weight: 600;
+}
+
+html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2a3a6a); color: #a9c0f5; }
+
+.empty { padding: 32px; text-align: center; color: var(--muted); }
+
+.footer {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px;
+}
+
+/* ===== DYNAMIC FIELDS ===== */
+.dynamic-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.dynamic-fields .wide { grid-column: 1/-1; }
+
+/* ===== LOGIN PAGE — Classic CSS Background (no image) ===== */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 16px;
+  /* Classic gradient background - no image, very lightweight */
+  background:
+    /* Subtle radial accents */
+    radial-gradient(circle at 20% 20%, rgba(99, 140, 234, .25), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(213, 154, 25, .15), transparent 50%),
+    /* Main diagonal gradient */
+    linear-gradient(135deg, #1a2540 0%, #2d3f6e 50%, #1f2b50 100%);
+  background-color: #1a2540;
+  overflow: auto;
+}
+
+/* Subtle dot pattern overlay */
+.login-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-overlay.hidden { display: none; }
+
+/* (dark overlay removed - the gradient background is already dark enough) */
+.login-bg-overlay { display: none; }
+
+/* Brand image (title + logo) — exactly the same width as the login card, just above it */
+.login-brand-wrap {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 420px; /* exactly matches .login-card max-width */
+  margin-top: 3vh;  /* small top margin from page top */
+  text-align: center;
+}
+
+.login-brand-img,
+.login-brand-wrap picture,
+.login-brand-wrap img {
+  display: block;
+  width: 100%;        /* fill the brand-wrap (420px) — same width as login card */
+  height: auto;
+  border-radius: var(--radius-md) var(--radius-md) 0 0; /* flush with card top corners */
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,.35));
+}
+
+/* Login card — sits directly below the brand image with minimal gap */
+.login-card {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 0; /* no gap — brand image connects flush to card */
+  background: rgba(255,255,255,.97);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl); /* rounded only at bottom */
+  padding: 24px 28px 22px;
+  box-shadow:
+    0 32px 80px rgba(0,0,0,.5),
+    0 12px 32px rgba(0,0,0,.3),
+    0 0 0 1px rgba(255,255,255,.2);
+  animation: cardIn .5s cubic-bezier(.22,1,.36,1);
+  text-align: center;
+  backdrop-filter: blur(20px);
+  transition: box-shadow .2s, opacity .2s;
+}
+html[data-theme="dark"] .login-card {
+  background: rgba(26,37,60,.95);
+  color: var(--ink);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(24px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.login-banner {
+  width: 100%;
+  max-height: 130px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: 18px;
+}
+
+/* Banner container — wraps admin-managed banner images above the login card */
+.login-banner-container {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 4px;
+  text-align: center;
+}
+.login-banner-container:empty { display: none; }
+.login-banner-container img {
+  display: block;
+  width: 100%;
+  max-height: 130px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+.login-banner-container a {
+  display: block;
+}
+
+/* Login announcements list — the bottom box below the login card */
+.login-announcement-list {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 3;
+  position: relative;
+}
+.login-announcement-list:empty { display: none; }
+
+.login-announcement-item {
+  background: rgba(255,255,255,.95);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink, #1f2937);
+  text-align: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  border-right: 4px solid var(--accent, #3156a5);
+  animation: cardIn .4s cubic-bezier(.22,1,.36,1);
+}
+.login-announcement-item.festive {
+  background: linear-gradient(135deg, #fff8e6, #fff3d0);
+  border-right-color: #d59a19;
+  color: #72500b;
+  font-weight: 500;
+}
+html[data-theme="dark"] .login-announcement-item {
+  background: rgba(26,37,60,.95);
+  color: var(--ink, #e5e7eb);
+}
+html[data-theme="dark"] .login-announcement-item.festive {
+  background: linear-gradient(135deg, #2a2410, #38300c);
+  color: #f0b040;
+}
+
+/* Login mark/title/subtitle hidden by default now — they're shown only if user customizes */
+.login-mark { display: none; }
+.login-title { display: none; }
+.login-subtitle { display: none; }
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  text-align: right;
+}
+
+.login-field { text-align: right; }
+
+.login-field label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+  display: block;
+  text-align: right;
+}
+
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  right: 14px;
+  color: var(--muted);
+  pointer-events: none;
+  transition: color .2s;
+  flex-shrink: 0;
+}
+
+.input-wrap input {
+  width: 100%;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  padding: 11px 44px 11px 44px;
+  border-radius: var(--radius-md);
+  transition: all .2s;
+  font: inherit;
+  color: var(--ink);
+  min-height: 46px;
+}
+
+.input-wrap input:focus {
+  background: var(--white);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(59,89,152,.12);
+}
+
+.input-wrap input:focus ~ .input-icon {
+  color: var(--blue);
+}
+
+.toggle-password {
+  position: absolute;
+  left: 8px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.toggle-password:hover { color: var(--blue); background: var(--bg-alt); }
+
+.login-forgot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.login-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.login-remember input {
+  width: auto;
+  min-height: auto;
+  margin: 0;
+  accent-color: var(--blue);
+}
+
+.login-forgot-row a {
+  color: var(--blue);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color .2s;
+}
+
+.login-forgot-row a:hover { color: var(--navy); text-decoration: underline; }
+
+.login-actions { margin-top: 2px; }
+
+.login-actions button {
+  width: 100%;
+  background: linear-gradient(135deg, var(--blue), var(--navy));
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-actions button::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+  transition: left .6s;
+}
+
+.login-actions button:hover::before { left: 100%; }
+
+.login-actions button svg { transition: transform .2s; }
+.login-actions button:hover svg { transform: translateX(-4px); }
+
+.login-error {
+  color: var(--red);
+  font-size: 13px;
+  min-height: 18px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  background: var(--red-bg);
+  border-radius: var(--radius-sm);
+  text-align: right;
+  display: none;
+}
+
+.login-error:not(:empty) { display: block; animation: shake .3s; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.login-demo {
+  font-size: 12.5px;
+  background: linear-gradient(135deg, #fff8e6, #fff3d0);
+  border-radius: var(--radius-md);
+  padding: 11px 13px;
+  border: 1px solid #f0dda1;
+  color: #72500b;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: right;
+  margin-top: 14px;
+}
+
+html[data-theme="dark"] .login-demo {
+  background: linear-gradient(135deg, #2a2410, #38300c);
+  border-color: #5a4a18;
+  color: #f0b040;
+}
+
+.login-demo-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(213,154,25,.18);
+  border-radius: var(--radius-sm);
+  color: #d59a19;
+}
+
+html[data-theme="dark"] .login-demo-icon { color: #f0b040; }
+
+.login-demo b { color: var(--navy); font-weight: 700; }
+html[data-theme="dark"] .login-demo b { color: var(--ink); }
+
+.login-extra { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.login-separator { color: var(--muted); margin: 0 6px; }
+
+/* Theme toggle button is hidden on login page per user request */
+.login-theme-toggle { display: none !important; }
+
+/* ===== CHART AREA ===== */
+.chart-container {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.chart-container h2 { margin-top: 0; }
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 280px;
+  margin-top: 14px;
+}
+
+@media (max-width: 700px) {
+  .chart-canvas-wrap { height: 240px; }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 700px) {
+  .grid, .grid.three { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card { padding: 16px; }
+  .wrap { margin-top: 12px; padding: 0 10px; }
+  header { padding: 18px; padding-top: 50px; }
+  .brand-row { gap: 12px; padding-left: 0; }
+  .logo-slot { width: 60px; height: 60px; flex-basis: 60px; }
+  .ticker-shell { gap: 8px; padding: 8px 12px; }
+  .dynamic-fields { grid-template-columns: 1fr; }
+  .tab { padding: 8px 12px; font-size: 13px; }
+  .login-card { padding: 20px 22px 18px; }
+  .login-brand-wrap { margin-top: 4vh; max-width: 95%; }
+  .theme-toggle { top: 14px; left: 14px; padding: 6px 10px; font-size: 11px; }
+}
+
+@media (max-width: 480px) {
+  .stats { grid-template-columns: 1fr; }
+  .nav { gap: 4px; padding: 6px; }
+  .tab { padding: 7px 10px; font-size: 11.5px; }
+  .login-card { padding: 18px 18px 16px; }
+  .login-brand-wrap { margin-top: 3vh; max-width: 98%; }
+}
+
+/* ===== UTILITY ===== */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--white);
+  color: var(--ink);
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+  z-index: 1000;
+  font-size: 13px;
+  animation: toastIn .3s ease;
+  max-width: 320px;
+}
+
+.toast.success { border-right: 4px solid var(--green); }
+.toast.error { border-right: 4px solid var(--red); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loader */
+.loader {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Settings sections list */
+.admin-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admin-section-link {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.admin-section-link:hover {
+  border-color: var(--blue);
+  background: var(--bg-alt);
+}
+
+.admin-section-link .arrow {
+  color: var(--muted);
+  font-size: 18px;
+}
