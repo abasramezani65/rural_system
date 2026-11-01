@@ -1,12 +1,14 @@
--- PostgreSQL schema for Rural Services System
--- This schema is used when DATABASE_URL environment variable is set to a PostgreSQL connection string.
+-- SQLite schema for Rural Services System
+-- SQLite uses WRITE locks at the file level, but WAL mode allows concurrent reads
+PRAGMA journal_mode=WAL;
+PRAGMA foreign_keys=ON;
 
 -- Roles (سمت‌ها)
 CREATE TABLE IF NOT EXISTS roles (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   active INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Services (خدمات)
@@ -14,14 +16,14 @@ CREATE TABLE IF NOT EXISTS services (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   active INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Provinces (استان‌ها)
 CREATE TABLE IF NOT EXISTS provinces (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Counties (شهرستان‌ها)
@@ -29,17 +31,17 @@ CREATE TABLE IF NOT EXISTS counties (
   id TEXT PRIMARY KEY,
   province_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (province_id) REFERENCES provinces(id) ON DELETE CASCADE,
   UNIQUE(province_id, name)
 );
 
--- Districts (دهستان‌ها)
+-- Districts (دهستان‌ها) - optional
 CREATE TABLE IF NOT EXISTS districts (
   id TEXT PRIMARY KEY,
   county_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE CASCADE
 );
 
@@ -53,7 +55,7 @@ CREATE TABLE IF NOT EXISTS users (
   province_id TEXT,
   county_id TEXT,
   active INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (province_id) REFERENCES provinces(id) ON DELETE SET NULL,
   FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE SET NULL
 );
@@ -62,8 +64,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -89,8 +91,8 @@ CREATE TABLE IF NOT EXISTS records (
   evidence TEXT,
   custom_values TEXT,
   created_by_user_id TEXT,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (province_id) REFERENCES provinces(id) ON DELETE SET NULL,
   FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE SET NULL,
   FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL,
@@ -103,7 +105,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   id TEXT PRIMARY KEY,
   text TEXT NOT NULL,
   active INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Custom Fields (فیلدهای سفارشی)
@@ -113,7 +115,7 @@ CREATE TABLE IF NOT EXISTS custom_fields (
   type TEXT NOT NULL DEFAULT 'text',
   scope TEXT NOT NULL DEFAULT 'all',
   active INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Settings (key-value)
@@ -129,18 +131,8 @@ CREATE TABLE IF NOT EXISTS geo_catalog (
   county_name TEXT NOT NULL,
   district_name TEXT,
   village_name TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(province_name, county_name, district_name, village_name)
-);
-
--- Login demo box items
-CREATE TABLE IF NOT EXISTS login_demo_items (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  active INTEGER NOT NULL DEFAULT 1,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Login announcements
@@ -150,19 +142,19 @@ CREATE TABLE IF NOT EXISTS login_announcements (
   festive INTEGER NOT NULL DEFAULT 0,
   active INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Login banners
 CREATE TABLE IF NOT EXISTS login_banners (
   id TEXT PRIMARY KEY,
   image_data TEXT NOT NULL,
-  image_mime TEXT NOT NULL DEFAULT 'image/png',
+  image_mime TEXT NOT NULL DEFAULT 'image/jpeg',
   link_url TEXT DEFAULT '',
   title TEXT DEFAULT '',
   active INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Core field config
