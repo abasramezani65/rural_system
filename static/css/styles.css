@@ -622,8 +622,8 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
   position: relative;
   z-index: 3;
   width: 100%;
-  max-width: 420px;
-  margin-top: 3vh;
+  max-width: 420px; /* exactly matches .login-card max-width */
+  margin-top: 3vh;  /* small top margin from page top */
   text-align: center;
 }
 
@@ -631,9 +631,9 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
 .login-brand-wrap picture,
 .login-brand-wrap img {
   display: block;
-  width: 100%;
+  width: 100%;        /* fill the brand-wrap (420px) — same width as login card */
   height: auto;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0; /* flush with card top corners */
   filter: drop-shadow(0 6px 18px rgba(0,0,0,.35));
 }
 
@@ -643,9 +643,9 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
   z-index: 3;
   width: 100%;
   max-width: 420px;
-  margin-top: 0;
+  margin-top: 0; /* no gap — brand image connects flush to card */
   background: rgba(255,255,255,.97);
-  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl); /* rounded only at bottom */
   padding: 24px 28px 22px;
   box-shadow:
     0 32px 80px rgba(0,0,0,.5),
