@@ -844,3 +844,297 @@ def export_all_data():
         'geoCatalog': list_geo_catalog(),
         'users': list_users(),
     }
+
+
+# ===== PLAN MANAGEMENT SYSTEM (سامانه طرح‌های پویا) =====
+
+# ----- Plans CRUD -----
+def list_plans(active_only=False, search=''):
+    """List all plans with their allowed status categories."""
+    sql = 'SELECT * FROM plans'
+    conditions = []
+    params = []
+    if active_only:
+        conditions.append('active=1')
+    if search:
+        conditions.append('(name LIKE ? OR description LIKE ?)')
+        params.extend([f'%{search}%', f'%{search}%'])
+    if conditions:
+        sql += ' WHERE ' + ' AND '.join(conditions)
+    sql += ' ORDER BY sort_order, created_at'
+    plans = rows_to_dicts(_fetchall(sql, tuple(params) if params else None))
+    # Attach allowed statuses and field count
+    for p in plans:
+        p['allowed_statuses'] = [r['status_category'] for r in rows_to_dicts(_fetchall(
+            'SELECT status_category FROM plan_status_allowed WHERE plan_id=?', (p['id'],)))]
+        p['field_count'] = _fetchval(
+            'SELECT COUNT(*) FROM plan_fields WHERE plan_id=? AND active=1', (p['id'],))
+        p['record_count'] = _fetchval(
+            'SELECT COUNT(*) FROM plan_records WHERE plan_id=?', (p['id'],))
+    return plans
+
+
+def get_plan(pid):
+    """Get a single plan with its allowed statuses."""
+    p = _fetchone('SELECT * FROM plans WHERE id=?', (pid,))
+    if not p:
+        return None
+    p['allowed_statuses'] = [r['status_category'] for r in rows_to_dicts(_fetchall(
+        'SELECT status_category FROM plan_status_allowed WHERE plan_id=?', (pid,)))]
+    return p
+
+
+def add_plan(name, description='', allowed_statuses=None, allow_duplicate=0, sort_order=0, created_by=None):
+    """Create a new plan."""
+    pid = uid('plan')
+    _exec(
+        'INSERT INTO plans(id, name, description, active, allow_duplicate, sort_order, created_by) '
+        'VALUES (?,?,?,?,?,?,?)',
+        (pid, name, description, 1, allow_duplicate, sort_order, created_by)
+    )
+    if allowed_statuses:
+        _set_plan_statuses(pid, allowed_statuses)
+    else:
+        _set_plan_statuses(pid, ['done', 'in_progress', 'capacity'])
+    return pid
+
+
+def update_plan(pid, name=None, description=None, active=None, allow_duplicate=None,
+                sort_order=None, allowed_statuses=None):
+    """Update a plan. Only provided fields are updated."""
+    parts = []
+    params = []
+    if name is not None:
+        parts.append('name=?')
+        params.append(name)
+    if description is not None:
+        parts.append('description=?')
+        params.append(description)
+    if active is not None:
+        parts.append('active=?')
+        params.append(active)
+    if allow_duplicate is not None:
+        parts.append('allow_duplicate=?')
+        params.append(allow_duplicate)
+    if sort_order is not None:
+        parts.append('sort_order=?')
+        params.append(sort_order)
+    if parts:
+        parts.append('updated_at=CURRENT_TIMESTAMP')
+        params.append(pid)
+        _exec(f'UPDATE plans SET {",".join(parts)} WHERE id=?', tuple(params))
+    if allowed_statuses is not None:
+        _set_plan_statuses(pid, allowed_statuses)
+
+
+def _set_plan_statuses(pid, statuses):
+    """Replace the allowed status categories for a plan."""
+    _exec('DELETE FROM plan_status_allowed WHERE plan_id=?', (pid,))
+    for s in statuses:
+        sid = uid('psa')
+        _exec('INSERT INTO plan_status_allowed(id, plan_id, status_category) VALUES (?,?,?)',
+              (sid, pid, s))
+
+
+def delete_plan(pid):
+    """Soft-delete a plan by setting active=0. Hard delete only if no records."""
+    record_count = _fetchval('SELECT COUNT(*) FROM plan_records WHERE plan_id=?', (pid,))
+    if record_count == 0:
+        _exec('DELETE FROM plans WHERE id=?', (pid,))
+    else:
+        _exec('UPDATE plans SET active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', (pid,))
+
+
+# ----- Plan Fields CRUD -----
+def list_plan_fields(pid, active_only=True):
+    """List all fields for a plan."""
+    sql = 'SELECT * FROM plan_fields WHERE plan_id=?'
+    if active_only:
+        sql += ' AND active=1'
+    sql += ' ORDER BY sort_order, created_at'
+    return rows_to_dicts(_fetchall(sql, (pid,)))
+
+
+def get_plan_field(fid):
+    return _fetchone('SELECT * FROM plan_fields WHERE id=?', (fid,))
+
+
+def add_plan_field(pid, field_key, label, field_type='text', required=0, options=None,
+                   help_text='', sort_order=0):
+    fid = uid('pf')
+    import json as _json
+    opts_json = _json.dumps(options, ensure_ascii=False) if options else None
+    _exec(
+        'INSERT INTO plan_fields(id, plan_id, field_key, label, type, required, options, '
+        'help_text, sort_order, active) VALUES (?,?,?,?,?,?,?,?,?,1)',
+        (fid, pid, field_key, label, field_type, required, opts_json, help_text, sort_order)
+    )
+    return fid
+
+
+def update_plan_field(fid, field_key=None, label=None, field_type=None, required=None,
+                      options=None, help_text=None, sort_order=None, active=None):
+    parts = []
+    params = []
+    if field_key is not None: parts.append('field_key=?'); params.append(field_key)
+    if label is not None: parts.append('label=?'); params.append(label)
+    if field_type is not None: parts.append('type=?'); params.append(field_type)
+    if required is not None: parts.append('required=?'); params.append(required)
+    if options is not None:
+        import json as _json
+        parts.append('options=?')
+        params.append(_json.dumps(options, ensure_ascii=False) if options else None)
+    if help_text is not None: parts.append('help_text=?'); params.append(help_text)
+    if sort_order is not None: parts.append('sort_order=?'); params.append(sort_order)
+    if active is not None: parts.append('active=?'); params.append(active)
+    if parts:
+        parts.append('updated_at=CURRENT_TIMESTAMP')
+        params.append(fid)
+        _exec(f'UPDATE plan_fields SET {",".join(parts)} WHERE id=?', tuple(params))
+
+
+def delete_plan_field(fid):
+    """Soft-delete a field if it has data, hard delete if not."""
+    _exec('UPDATE plan_fields SET active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', (fid,))
+
+
+# ----- Plan Records -----
+def list_plan_records(filters=None):
+    """List plan records with optional filters."""
+    sql = ('SELECT pr.*, p.name as plan_name FROM plan_records pr '
+           'LEFT JOIN plans p ON p.id=pr.plan_id WHERE 1=1')
+    conditions = []
+    params = []
+    if filters:
+        if filters.get('plan_id'):
+            conditions.append('pr.plan_id=?')
+            params.append(filters['plan_id'])
+        if filters.get('village'):
+            conditions.append('pr.village LIKE ?')
+            params.append(f'%{filters["village"]}%')
+        if filters.get('province_id'):
+            conditions.append('pr.province_id=?')
+            params.append(filters['province_id'])
+        if filters.get('county_id'):
+            conditions.append('pr.county_id=?')
+            params.append(filters['county_id'])
+        if filters.get('status_category'):
+            conditions.append('pr.status_category=?')
+            params.append(filters['status_category'])
+    if conditions:
+        sql += ' AND ' + ' AND '.join(conditions)
+    sql += ' ORDER BY pr.created_at DESC'
+    return rows_to_dicts(_fetchall(sql, tuple(params) if params else None))
+
+
+def get_plan_record(rid):
+    return _fetchone('SELECT * FROM plan_records WHERE id=?', (rid,))
+
+
+def find_plan_record(plan_id, village, province_id='', county_id=''):
+    """Find an existing record for this plan+village combination."""
+    return _fetchone(
+        'SELECT * FROM plan_records WHERE plan_id=? AND village=? AND '
+        '(province_id=? OR (province_id IS NULL AND ?="")) AND '
+        '(county_id=? OR (county_id IS NULL AND ?=""))',
+        (plan_id, village, province_id, province_id, county_id, county_id)
+    )
+
+
+def add_plan_record(plan_id, village, status_category, field_values=None, province_id='',
+                    county_id='', district_id='', expert_name='', role_id='', org='',
+                    service_date='', description='', created_by=''):
+    """Create a new plan record. Raises if duplicate exists."""
+    existing = find_plan_record(plan_id, village, province_id, county_id)
+    if existing:
+        plan = get_plan(plan_id)
+        if plan and not plan.get('allow_duplicate'):
+            raise ValueError('برای این روستا قبلاً طرح ثبت شده است. می‌توانید وضعیت آن را تغییر دهید.')
+    rid = uid('pr')
+    import json as _json
+    fv_json = _json.dumps(field_values, ensure_ascii=False) if field_values else None
+    _exec(
+        'INSERT INTO plan_records(id, plan_id, province_id, county_id, district_id, village, '
+        'status_category, field_values, expert_name, role_id, org, service_date, description, created_by) '
+        'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        (rid, plan_id, province_id or None, county_id or None, district_id or None, village,
+         status_category, fv_json, expert_name, role_id, org, service_date, description, created_by)
+    )
+    # Log initial status
+    _add_status_history(rid, None, status_category, created_by, 'ثبت اولیه')
+    return rid
+
+
+def update_plan_record_status(rid, new_status, changed_by='', note=''):
+    """Change the status of a plan record. Logs to history."""
+    record = get_plan_record(rid)
+    if not record:
+        raise ValueError('رکورد یافت نشد.')
+    old_status = record.get('status_category')
+    if old_status == new_status:
+        return
+    _exec('UPDATE plan_records SET status_category=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+          (new_status, rid))
+    _add_status_history(rid, old_status, new_status, changed_by, note)
+
+
+def update_plan_record(rid, field_values=None, expert_name=None, org=None,
+                       service_date=None, description=None):
+    """Update a plan record's field values and metadata."""
+    parts = []
+    params = []
+    if field_values is not None:
+        import json as _json
+        parts.append('field_values=?')
+        params.append(_json.dumps(field_values, ensure_ascii=False))
+    if expert_name is not None: parts.append('expert_name=?'); params.append(expert_name)
+    if org is not None: parts.append('org=?'); params.append(org)
+    if service_date is not None: parts.append('service_date=?'); params.append(service_date)
+    if description is not None: parts.append('description=?'); params.append(description)
+    if parts:
+        parts.append('updated_at=CURRENT_TIMESTAMP')
+        params.append(rid)
+        _exec(f'UPDATE plan_records SET {",".join(parts)} WHERE id=?', tuple(params))
+
+
+def delete_plan_record(rid):
+    _exec('DELETE FROM plan_records WHERE id=?', (rid,))
+
+
+# ----- Status History -----
+def _add_status_history(rid, old_status, new_status, changed_by='', note=''):
+    hid = uid('psh')
+    _exec(
+        'INSERT INTO plan_status_history(id, plan_record_id, old_status, new_status, '
+        'changed_by, note) VALUES (?,?,?,?,?,?)',
+        (hid, rid, old_status, new_status, changed_by, note)
+    )
+
+
+def get_status_history(rid):
+    return rows_to_dicts(_fetchall(
+        'SELECT * FROM plan_status_history WHERE plan_record_id=? ORDER BY changed_at DESC',
+        (rid,)
+    ))
+
+
+# ----- Plan Statistics -----
+def get_plan_stats():
+    """Get summary statistics for the admin dashboard."""
+    total_plans = _fetchval('SELECT COUNT(*) FROM plans') or 0
+    active_plans = _fetchval('SELECT COUNT(*) FROM plans WHERE active=1') or 0
+    total_records = _fetchval('SELECT COUNT(*) FROM plan_records') or 0
+    done_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='done'") or 0
+    in_progress_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='in_progress'") or 0
+    capacity_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='capacity'") or 0
+    villages_count = _fetchval('SELECT COUNT(DISTINCT village) FROM plan_records') or 0
+    return {
+        'total_plans': total_plans,
+        'active_plans': active_plans,
+        'inactive_plans': total_plans - active_plans,
+        'total_records': total_records,
+        'done': done_count,
+        'in_progress': in_progress_count,
+        'capacity': capacity_count,
+        'villages_count': villages_count,
+    }
