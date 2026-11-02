@@ -137,6 +137,39 @@
         </div>
       </form>
     </div>
+
+    <!-- PLAN-BASED REGISTRATION (ثبت طرح‌محور) -->
+    <div class="card" id="planRegCard">
+      <h2>ثبت طرح‌محور خدمات روستایی</h2>
+      <p class="hint">طرح‌ها را بر اساس وضعیت انتخاب کنید و اطلاعات اختصاصی هر طرح را وارد نمایید.</p>
+
+      <!-- Location selection (shared with plan registration) -->
+      <div class="grid three" style="margin-bottom:12px">
+        <div><label>استان</label><select id="planProvince" required></select></div>
+        <div><label>شهرستان</label><select id="planCounty" required></select></div>
+        <div><label>روستا</label><input id="planVillage" required placeholder="نام روستا"></div>
+      </div>
+
+      <!-- Status tabs -->
+      <div class="plan-status-tabs">
+        <button type="button" class="plan-tab active" data-status="done">✅ انجام‌شده</button>
+        <button type="button" class="plan-tab" data-status="in_progress">🔄 در حال انجام</button>
+        <button type="button" class="plan-tab" data-status="capacity">📋 دارای ظرفیت انجام</button>
+      </div>
+
+      <!-- Plan list for selected status -->
+      <div id="planListContainer" class="plan-list-container">
+        <p class="hint">برای مشاهده طرح‌ها، ابتدا استان و شهرستان را انتخاب کنید.</p>
+      </div>
+
+      <!-- Dynamic forms for selected plans -->
+      <div id="planFormsContainer"></div>
+
+      <div class="actions" id="planSubmitActions" style="display:none">
+        <button type="button" id="submitPlanRecords">ثبت اطلاعات طرح‌ها</button>
+        <button type="button" class="secondary" id="clearPlanSelection">پاک‌کردن انتخاب</button>
+      </div>
+    </div>
   </section>
 
   <!-- SUMMARY & CHARTS -->
@@ -191,6 +224,26 @@
       </div>
       <div id="summaryResults" class="table-wrap" style="margin-top:12px"></div>
     </div>
+
+    <!-- PLAN REPORT (گزارش طرح‌ها) -->
+    <div class="card">
+      <div class="actions" style="justify-content:space-between;margin-top:0">
+        <h2 style="margin:0">📊 گزارش طرح‌های پویا</h2>
+        <button class="gold" id="exportPlanReport">دانلود CSV</button>
+      </div>
+      <div class="grid three" style="margin-top:12px">
+        <div><label>طرح</label><select id="reportPlanFilter"><option value="">همه طرح‌ها</option></select></div>
+        <div><label>وضعیت</label><select id="reportStatusFilter">
+          <option value="">همه وضعیت‌ها</option>
+          <option value="done">انجام‌شده</option>
+          <option value="in_progress">در حال انجام</option>
+          <option value="capacity">دارای ظرفیت</option>
+        </select></div>
+        <div><label>روستا</label><input id="reportVillageFilter" placeholder="نام روستا"></div>
+      </div>
+      <div class="actions"><button id="applyPlanReport">اعمال فیلتر</button></div>
+      <div id="planReportResults" class="table-wrap" style="margin-top:12px"></div>
+    </div>
   </section>
 
   <!-- RECORDS -->
@@ -239,6 +292,69 @@
         <div class="notice" style="margin-top:18px">
           <b>نکته:</b> برای جابجایی کادر لاگین، اعلان‌ها و بنر روی صفحه ورود، آن‌ها را با ماوس بکشید. موقعیت در مرورگر شما ذخیره می‌شود.
         </div>
+      </div>
+    </div>
+
+    <!-- PLAN MANAGEMENT (مدیریت طرح‌ها) -->
+    <div class="card collapsible expanded" id="planManagementCard">
+      <div class="card-header"><h2>🎯 مدیریت طرح‌های پویا</h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <!-- Stats -->
+        <div class="plan-stats-grid" id="planStatsGrid">
+          <div class="plan-stat"><b id="psTotal">۰</b><span>کل طرح‌ها</span></div>
+          <div class="plan-stat"><b id="psActive">۰</b><span>فعال</span></div>
+          <div class="plan-stat"><b id="psRecords">۰</b><span>ثبت‌شده</span></div>
+          <div class="plan-stat"><b id="psVillages">۰</b><span>روستا</span></div>
+        </div>
+
+        <!-- Add new plan -->
+        <div class="grid three" style="margin-top:16px">
+          <div style="grid-column:1/-1"><label>عنوان طرح جدید</label><input id="newPlanName" placeholder="مثلاً: طرح اشتغال‌زایی روستایی"></div>
+          <div style="grid-column:1/-1"><label>توضیحات</label><input id="newPlanDesc" placeholder="توضیحات مختصر طرح"></div>
+          <div><label>دسته‌های مجاز</label>
+            <label class="check"><input type="checkbox" class="ps-check" value="done" checked> انجام‌شده</label>
+            <label class="check"><input type="checkbox" class="ps-check" value="in_progress" checked> در حال انجام</label>
+            <label class="check"><input type="checkbox" class="ps-check" value="capacity" checked> ظرفیت انجام</label>
+          </div>
+          <div><label>اجازه ثبت مجدد</label>
+            <label class="check"><input type="checkbox" id="newPlanDup"> اجازه ثبت تکراری برای همان روستا</label>
+          </div>
+          <div><label>ترتیب</label><input id="newPlanOrder" type="number" value="0"></div>
+          <div class="actions" style="align-items:end"><button id="addPlanBtn">افزودن طرح</button></div>
+        </div>
+
+        <!-- Search -->
+        <div style="margin-top:16px"><input id="planSearch" placeholder="🔍 جستجوی طرح..."></div>
+
+        <!-- Plan list -->
+        <div id="plansAdminList" class="plans-admin-list"></div>
+      </div>
+    </div>
+
+    <!-- PLAN FIELDS MODAL (مدیریت فیلدهای طرح) -->
+    <div class="card collapsible" id="planFieldsCard" style="display:none">
+      <div class="card-header"><h2>مدیریت فیلدهای طرح: <span id="planFieldsTitle"></span></h2><span class="chevron">▼</span></div>
+      <div class="card-body">
+        <div class="grid three">
+          <div><label>عنوان فیلد</label><input id="newFieldLabel" placeholder="مثلاً: تعداد شاغلین"></div>
+          <div><label>نوع فیلد</label><select id="newFieldType">
+            <option value="text">متن کوتاه</option>
+            <option value="textarea">متن چندخطی</option>
+            <option value="number">عدد</option>
+            <option value="money">مبلغ (تومان)</option>
+            <option value="date">تاریخ</option>
+            <option value="select_single">انتخاب یک گزینه</option>
+            <option value="select_multi">انتخاب چند گزینه</option>
+            <option value="checkbox">چک‌باکس</option>
+            <option value="file">بارگذاری فایل</option>
+          </select></div>
+          <div><label>گزینه‌ها (با کاما جدا کنید)</label><input id="newFieldOptions" placeholder="گزینه۱، گزینه۲، گزینه۳"></div>
+          <div><label>راهنما</label><input id="newFieldHelp" placeholder="راهنمای تکمیل فیلد"></div>
+          <div><label class="check"><input type="checkbox" id="newFieldRequired"> اجباری</label></div>
+          <div class="actions" style="align-items:end"><button id="addFieldBtn">افزودن فیلد</button></div>
+        </div>
+        <div id="fieldsAdminList" style="margin-top:14px"></div>
+        <div class="actions" style="margin-top:14px"><button class="secondary" id="backToPlansBtn">← بازگشت به طرح‌ها</button></div>
       </div>
     </div>
 
