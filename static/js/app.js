@@ -1381,22 +1381,24 @@ async function addPlan() {
   const statuses = Array.from(document.querySelectorAll('.ps-check:checked')).map(c => c.value);
   const allowDup = document.getElementById('newPlanDup').checked ? 1 : 0;
   const order = parseInt(document.getElementById('newPlanOrder').value) || 0;
-  const r = await api('/api/plans', {method:'POST', body: JSON.stringify({
-    name, description: desc, allowed_statuses: statuses, allow_duplicate: allowDup, sort_order: order
-  })});
-  if (r.ok) {
-    toast('طرح با موفقیت ایجاد شد', 'success');
-    document.getElementById('newPlanName').value = '';
-    document.getElementById('newPlanDesc').value = '';
-    await loadState();
-  } else { toast(r.error || 'خطا', 'error'); }
+  try {
+    const r = await api('/api/plans', {method:'POST', body: {name, description: desc, allowed_statuses: statuses, allow_duplicate: allowDup, sort_order: order}});
+    if (r.ok) {
+      toast('طرح با موفقیت ایجاد شد', 'success');
+      document.getElementById('newPlanName').value = '';
+      document.getElementById('newPlanDesc').value = '';
+      await loadState();
+    } else { toast(r.error || 'خطا', 'error'); }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 async function togglePlanActive(pid) {
   const plan = State.plans.find(p => p.id === pid);
   if (!plan) return;
-  const r = await api(`/api/plans/${pid}`, {method:'POST', body: JSON.stringify({active: plan.active ? 0 : 1})});
-  if (r.ok) { toast(plan.active ? 'طرح غیرفعال شد' : 'طرح فعال شد', 'success'); await loadState(); }
+  try {
+    const r = await api(`/api/plans/${pid}`, {method:'POST', body: {active: plan.active ? 0 : 1}});
+    if (r.ok) { toast(plan.active ? 'طرح غیرفعال شد' : 'طرح فعال شد', 'success'); await loadState(); }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 async function deletePlan(pid) {
@@ -1427,10 +1429,10 @@ async function addPlanOrUpdate() {
     const statuses = Array.from(document.querySelectorAll('.ps-check:checked')).map(c => c.value);
     const allowDup = document.getElementById('newPlanDup').checked ? 1 : 0;
     const order = parseInt(document.getElementById('newPlanOrder').value) || 0;
-    const r = await api(`/api/plans/${pid}`, {method:'POST', body: JSON.stringify({
-      name, description: desc, allowed_statuses: statuses, allow_duplicate: allowDup, sort_order: order
-    })});
-    if (r.ok) { toast('طرح به‌روزرسانی شد', 'success'); State.editingPlanId = null; document.getElementById('newPlanName').value=''; await loadState(); }
+    try {
+      const r = await api(`/api/plans/${pid}`, {method:'POST', body: {name, description: desc, allowed_statuses: statuses, allow_duplicate: allowDup, sort_order: order}});
+      if (r.ok) { toast('طرح به‌روزرسانی شد', 'success'); State.editingPlanId = null; document.getElementById('newPlanName').value=''; await loadState(); }
+    } catch(e) { toast(e.message, 'error'); }
   } else { _addPlanOrig(); }
 }
 
@@ -1486,17 +1488,17 @@ async function addPlanField() {
   if (optionsRaw && (type==='select_single'||type==='select_multi')) {
     options = optionsRaw.split(/[،,]/).map(s=>s.trim()).filter(Boolean);
   }
-  const r = await api(`/api/plans/${pid}/fields`, {method:'POST', body: JSON.stringify({
-    label, type, required, options, help_text: help
-  })});
-  if (r.ok) {
-    toast('فیلد اضافه شد', 'success');
-    document.getElementById('newFieldLabel').value='';
-    document.getElementById('newFieldOptions').value='';
-    document.getElementById('newFieldHelp').value='';
-    document.getElementById('newFieldRequired').checked=false;
-    await renderPlanFields(pid);
-  } else { toast(r.error||'خطا', 'error'); }
+  try {
+    const r = await api(`/api/plans/${pid}/fields`, {method:'POST', body: {label, type, required, options, help_text: help}});
+    if (r.ok) {
+      toast('فیلد اضافه شد', 'success');
+      document.getElementById('newFieldLabel').value='';
+      document.getElementById('newFieldOptions').value='';
+      document.getElementById('newFieldHelp').value='';
+      document.getElementById('newFieldRequired').checked=false;
+      await renderPlanFields(pid);
+    } else { toast(r.error||'خطا', 'error'); }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 async function deletePlanField(fid) {
@@ -1564,12 +1566,9 @@ function updatePlanCounties() {
   const provId = document.getElementById('planProvince').value;
   const countySel = document.getElementById('planCounty');
   if (!countySel) return;
-  const counties = State.provinces.flatMap(p => p.counties || []).filter(c => !provId || c.province_id === provId);
-  // Actually counties are separate — let me check geoCatalog or just use provinces' counties
-  // For simplicity, use geoCatalog or empty
-  countySel.innerHTML = '<option value="">انتخاب شهرستان</option>';
-  // Try to get counties from records or a separate source
-  // For now, just allow text input fallback
+  const prov = State.provinces.find(p => p.id === provId);
+  countySel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
+    (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
 }
 
 function renderPlanList() {
@@ -1716,13 +1715,15 @@ async function submitPlanRecords() {
       errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${fieldErrors.join('، ')}`);
       continue;
     }
-    const r = await api('/api/plan-records', {method:'POST', body: JSON.stringify({
-      plan_id: pid, village, status_category: status, field_values: values,
-      province_id: provinceId, county_id: countyId
-    })});
-    if (r.ok) success++;
-    else if (r.duplicate) errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error}`);
-    else errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error||'خطا'}`);
+    try {
+      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId}});
+      if (r.ok) success++;
+      else if (r.duplicate) errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error}`);
+      else errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error||'خطا'}`);
+    } catch(e) {
+      if (e.message.includes('تکرار') || e.message.includes('قبلا')) errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${e.message}`);
+      else errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${e.message}`);
+    }
   }
   if (success) toast(`${success} طرح ثبت شد`, 'success');
   if (errors.length) toast(`خطاها: ${errors.join(' | ')}`, 'error');
