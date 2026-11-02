@@ -1531,11 +1531,16 @@ function backToPlans() {
 
 // ----- Registration: Plan-based form -----
 function renderPlanRegistration() {
-  // Populate province dropdown
+  // Populate province dropdown (always refresh in case state loaded after init)
   const provSel = document.getElementById('planProvince');
-  if (provSel && !provSel.options.length) {
-    provSel.innerHTML = '<option value="">انتخاب استان</option>' + 
-      State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  if (provSel) {
+    const currentProv = provSel.value;
+    const expected = (State.provinces || []).length + 1;
+    if (provSel.options.length < expected) {
+      provSel.innerHTML = '<option value="">انتخاب استان</option>' + 
+        (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+      if (currentProv) provSel.value = currentProv;
+    }
   }
   // Status tabs
   document.querySelectorAll('.plan-tab').forEach(tab => {
@@ -1625,24 +1630,28 @@ async function renderPlanForms() {
   if (!container) return;
   if (!State.selectedPlans.size) {
     container.innerHTML = '';
-    actions.style.display = 'none';
+    if (actions) actions.style.display = 'none';
     return;
   }
-  actions.style.display = '';
+  if (actions) actions.style.display = '';
   const forms = [];
   for (const pid of State.selectedPlans) {
     const plan = State.plans.find(p => p.id === pid);
     if (!plan) continue;
-    if (!State.planFieldsCache[pid]) {
-      State.planFieldsCache[pid] = await api(`/api/plans/${pid}/fields`);
+    try {
+      if (!State.planFieldsCache[pid]) {
+        State.planFieldsCache[pid] = await api(`/api/plans/${pid}/fields`);
+      }
+      const fields = State.planFieldsCache[pid] || [];
+      forms.push(`
+        <div class="plan-form-card">
+          <h3>${esc(plan.name)}</h3>
+          ${fields.length ? fields.map(f => renderFieldInput(f, pid)).join('') : '<p class="hint">این طرح فیلد اختصاصی ندارد.</p>'}
+        </div>
+      `);
+    } catch(e) {
+      forms.push(`<div class="plan-form-card"><h3>${esc(plan.name)}</h3><p class="hint" style="color:var(--red)">خطا در بارگذاری فیلدها: ${esc(e.message)}</p></div>`);
     }
-    const fields = State.planFieldsCache[pid] || [];
-    forms.push(`
-      <div class="plan-form-card">
-        <h3>${esc(plan.name)}</h3>
-        ${fields.length ? fields.map(f => renderFieldInput(f, pid)).join('') : '<p class="hint">این طرح فیلد اختصاصی ندارد.</p>'}
-      </div>
-    `);
   }
   container.innerHTML = forms.join('');
 }
