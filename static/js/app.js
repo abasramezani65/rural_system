@@ -1661,6 +1661,12 @@ function renderFieldInput(f, pid) {
   const req = f.required ? ' required' : '';
   const reqMark = f.required ? ' <span style="color:#b91c1c">*</span>' : '';
   const help = f.help_text ? `<span class="hint">${esc(f.help_text)}</span>` : '';
+  // Parse options: might be JSON string or array
+  let opts = f.options;
+  if (typeof opts === 'string') {
+    try { opts = JSON.parse(opts); } catch(e) { opts = opts.split(/[،,]/).map(s=>s.trim()).filter(Boolean); }
+  }
+  if (!Array.isArray(opts)) opts = [];
   let input = '';
   switch(f.type) {
     case 'textarea':
@@ -1675,16 +1681,12 @@ function renderFieldInput(f, pid) {
     case 'date':
       input = `<input id="${key}" type="text"${req} placeholder="مثلاً ۱۴۰۵/۰۷/۲۰">`;
       break;
-    case 'select_single': {
-      const opts1 = (f.options||[]).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
-      input = `<select id="${key}"${req}><option value="">انتخاب...</option>${opts1}</select>`;
+    case 'select_single':
+      input = `<select id="${key}"${req}><option value="">انتخاب...</option>${opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>`;
       break;
-    }
-    case 'select_multi': {
-      const opts2 = (f.options||[]).map(o => `<label class="check"><input type="checkbox" class="${key}" value="${esc(o)}"> ${esc(o)}</label>`).join(' ');
-      input = `<div>${opts2}</div>`;
+    case 'select_multi':
+      input = `<div>${opts.map(o => `<label class="check"><input type="checkbox" class="${key}" value="${esc(o)}"> ${esc(o)}</label>`).join(' ')}</div>`;
       break;
-    }
     case 'checkbox':
       input = `<label class="check"><input id="${key}" type="checkbox"> بله</label>`;
       break;
