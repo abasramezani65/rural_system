@@ -112,31 +112,6 @@
 
   <!-- REGISTER -->
   <section id="register" class="panel active">
-    <div class="card">
-      <h2>ثبت اطلاعات کارشناس و خدمت انجام‌شده</h2>
-      <form id="recordForm">
-        <input type="hidden" id="editId">
-        <div class="grid three">
-          <div><label for="expertName">نام و نام خانوادگی کارشناس</label><input id="expertName" placeholder="نام کارشناس"></div>
-          <div><label for="expertRole">سمت / سطح فعالیت</label><select id="expertRole" required></select></div>
-          <div><label for="org">واحد یا مجموعه مجری</label><input id="org" placeholder="نام مجموعه / دستگاه"></div>
-          <div><label for="province">استان</label><select id="province" required></select></div>
-          <div><label for="county">شهرستان</label><select id="county" required></select></div>
-          <div><label for="district">دهستان</label><select id="district"><option value="">انتخاب دهستان</option></select></div>
-          <div><label for="village">روستا</label><input id="village" required placeholder="نام روستا"></div>
-          <div><label for="service">خدمت انجام‌شده</label><select id="service" required></select></div>
-          <div><label for="serviceDate">تاریخ اجرا</label><input id="serviceDate" placeholder="مثلاً ۱۴۰۵/۰۷/۲۰"></div>
-          <div><label for="beneficiaries">تعداد بهره‌مندان (اختیاری)</label><input id="beneficiaries" type="number" min="0" placeholder="۰"></div>
-        </div>
-        <div style="margin-top:14px"><label for="description">شرح اقدام و نتیجه خدمت</label><textarea id="description" placeholder="چه کاری انجام شده و چه نتیجه‌ای داشته است؟"></textarea></div>
-        <div id="evidenceFieldWrap" style="margin-top:14px"><label for="evidence">لینک مستندات (اختیاری)</label><input id="evidence" type="url" placeholder="https://..."></div>
-        <div id="dynamicRecordFields" class="dynamic-fields"></div>
-        <div class="actions">
-          <button type="submit" id="saveBtn">ثبت خدمت</button>
-          <button type="button" class="secondary" id="resetFormBtn">پاک‌کردن فرم</button>
-        </div>
-      </form>
-    </div>
 
     <!-- PLAN-BASED REGISTRATION (ثبت طرح‌محور) -->
     <div class="card" id="planRegCard">
