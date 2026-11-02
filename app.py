@@ -127,6 +127,9 @@ def api_state():
         filters['province_id'] = user['province_id']
         filters['county_id'] = user['county_id']
     records = DB.list_records(filters)
+    # Plan system data
+    plan_filters = dict(filters)
+    plan_records = DB.list_plan_records(plan_filters if plan_filters else None)
     return jsonify({
         'authenticated': True,
         'user': {
@@ -147,6 +150,10 @@ def api_state():
         'loginBanners': DB.list_login_banners(active_only=True),
         'loginAnnouncementsAll': DB.list_login_announcements() if user['role'] == 'national' else [],
         'loginBannersAll': DB.list_login_banners() if user['role'] == 'national' else [],
+        # Plan management data
+        'plans': DB.list_plans() if user['role'] == 'national' else DB.list_plans(active_only=True),
+        'planRecords': plan_records,
+        'planStats': DB.get_plan_stats(),
     })
 
 
@@ -617,6 +624,281 @@ def api_export_json():
     resp.headers['Content-Type'] = 'application/json; charset=utf-8'
     resp.headers['Content-Disposition'] = 'attachment; filename="rural_backup.json"'
     return resp
+
+
+# ===== API: PLAN MANAGEMENT (سامانه طرح‌های پویا) =====
+
+STATUS_LABELS = {'done': 'انجام‌شده', 'in_progress': 'در حال انجام', 'capacity': 'دارای ظرفیت انجام'}
+
+@app.route('/api/plans', methods=['GET'])
+def api_plans_list():
+    user = current_user()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    search = request.args.get('search', '')
+    active_only = request.args.get('active_only', '0') == '1'
+    plans = DB.list_plans(active_only=active_only, search=search)
+    return jsonify(plans)
+
+
+@app.route('/api/plans', methods=['POST'])
+def api_plan_add():
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز. مدیریت طرح‌ها فقط برای نقش کشوری.'}), 403
+    data = request.get_json(force=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'عنوان طرح الزامی است.'}), 400
+    description = (data.get('description') or '').strip()
+    allowed = data.get('allowed_statuses') or ['done', 'in_progress', 'capacity']
+    allow_dup = 1 if data.get('allow_duplicate') else 0
+    sort_order = int(data.get('sort_order', 0) or 0)
+    pid = DB.add_plan(name, description, allowed, allow_dup, sort_order, user['id'])
+    return jsonify({'ok': True, 'id': pid})
+
+
+@app.route('/api/plans/<pid>', methods=['POST'])
+def api_plan_update(pid):
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    data = request.get_json(force=True) or {}
+    DB.update_plan(pid,
+        name=data.get('name'),
+        description=data.get('description'),
+        active=data.get('active'),
+        allow_duplicate=data.get('allow_duplicate'),
+        sort_order=data.get('sort_order'),
+        allowed_statuses=data.get('allowed_statuses'))
+    return jsonify({'ok': True})
+
+
+@app.route('/api/plans/<pid>', methods=['DELETE'])
+def api_plan_delete(pid):
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    DB.delete_plan(pid)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/plans/<pid>/fields', methods=['GET'])
+def api_plan_fields_list(pid):
+    user = current_user()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    fields = DB.list_plan_fields(pid, active_only=(request.args.get('all') != '1'))
+    return jsonify(fields)
+
+
+@app.route('/api/plans/<pid>/fields', methods=['POST'])
+def api_plan_field_add(pid):
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    data = request.get_json(force=True) or {}
+    field_key = (data.get('field_key') or '').strip()
+    label = (data.get('label') or '').strip()
+    if not label:
+        return jsonify({'error': 'عنوان فیلد الزامی است.'}), 400
+    if not field_key:
+        import re
+        field_key = re.sub(r'\s+', '_', label)[:30]
+    fid = DB.add_plan_field(pid, field_key, label,
+        data.get('type', 'text'),
+        1 if data.get('required') else 0,
+        data.get('options'),
+        data.get('help_text', ''),
+        int(data.get('sort_order', 0) or 0))
+    return jsonify({'ok': True, 'id': fid})
+
+
+@app.route('/api/plan-fields/<fid>', methods=['POST'])
+def api_plan_field_update(fid):
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    data = request.get_json(force=True) or {}
+    DB.update_plan_field(fid,
+        field_key=data.get('field_key'),
+        label=data.get('label'),
+        field_type=data.get('type'),
+        required=data.get('required'),
+        options=data.get('options'),
+        help_text=data.get('help_text'),
+        sort_order=data.get('sort_order'),
+        active=data.get('active'))
+    return jsonify({'ok': True})
+
+
+@app.route('/api/plan-fields/<fid>', methods=['DELETE'])
+def api_plan_field_delete(fid):
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    DB.delete_plan_field(fid)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/plan-records', methods=['GET'])
+def api_plan_records_list():
+    user = current_user()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    filters = {}
+    for k in ('plan_id', 'village', 'province_id', 'county_id', 'status_category'):
+        v = request.args.get(k)
+        if v:
+            filters[k] = v
+    # Scope by user role
+    if user['role'] == 'provincial':
+        filters['province_id'] = user.get('province_id') or ''
+    elif user['role'] == 'county':
+        filters['county_id'] = user.get('county_id') or ''
+    records = DB.list_plan_records(filters if filters else None)
+    return jsonify(records)
+
+
+@app.route('/api/plan-records', methods=['POST'])
+def api_plan_record_add():
+    user = require_auth()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    data = request.get_json(force=True) or {}
+    plan_id = data.get('plan_id')
+    village = (data.get('village') or '').strip()
+    status_category = data.get('status_category')
+    if not plan_id or not village or not status_category:
+        return jsonify({'error': 'طرح، روستا و وضعیت الزامی است.'}), 400
+    # Server-side required field validation
+    fields = DB.list_plan_fields(plan_id)
+    values = data.get('field_values') or {}
+    errors = []
+    for f in fields:
+        if f['required'] and not values.get(f['field_key']):
+            errors.append(f"فیلد «{f['label']}» اجباری است.")
+    if errors:
+        return jsonify({'error': ' | '.join(errors)}), 400
+    # Scope check
+    province_id = data.get('province_id', '')
+    county_id = data.get('county_id', '')
+    if user['role'] == 'provincial' and user.get('province_id') and province_id != user['province_id']:
+        return jsonify({'error': 'ثبت خارج از محدوده استان مجاز نیست.'}), 403
+    if user['role'] == 'county' and user.get('county_id') and county_id != user['county_id']:
+        return jsonify({'error': 'ثبت خارج از محدوده شهرستان مجاز نیست.'}), 403
+    try:
+        rid = DB.add_plan_record(plan_id, village, status_category, values,
+            province_id=province_id, county_id=county_id,
+            district_id=data.get('district_id', ''),
+            expert_name=data.get('expert_name', ''),
+            role_id=data.get('role_id', ''),
+            org=data.get('org', ''),
+            service_date=data.get('service_date', ''),
+            description=data.get('description', ''),
+            created_by=user['id'])
+        return jsonify({'ok': True, 'id': rid})
+    except ValueError as e:
+        return jsonify({'error': str(e), 'duplicate': True}), 409
+
+
+@app.route('/api/plan-records/<rid>', methods=['POST'])
+def api_plan_record_update(rid):
+    user = require_auth()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    data = request.get_json(force=True) or {}
+    record = DB.get_plan_record(rid)
+    if not record:
+        return jsonify({'error': 'رکورد یافت نشد.'}), 404
+    # Scope check
+    if user['role'] == 'provincial' and record.get('province_id') != user.get('province_id'):
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    if user['role'] == 'county' and record.get('county_id') != user.get('county_id'):
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    if 'status_category' in data and data['status_category'] != record.get('status_category'):
+        DB.update_plan_record_status(rid, data['status_category'], user['id'], data.get('note', ''))
+    DB.update_plan_record(rid,
+        field_values=data.get('field_values'),
+        expert_name=data.get('expert_name'),
+        org=data.get('org'),
+        service_date=data.get('service_date'),
+        description=data.get('description'))
+    return jsonify({'ok': True})
+
+
+@app.route('/api/plan-records/<rid>', methods=['DELETE'])
+def api_plan_record_delete(rid):
+    user = require_auth()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    record = DB.get_plan_record(rid)
+    if not record:
+        return jsonify({'error': 'رکورد یافت نشد.'}), 404
+    if user['role'] == 'provincial' and record.get('province_id') != user.get('province_id'):
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    if user['role'] == 'county' and record.get('county_id') != user.get('county_id'):
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    DB.delete_plan_record(rid)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/plan-records/<rid>/history', methods=['GET'])
+def api_plan_record_history(rid):
+    user = current_user()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    return jsonify(DB.get_status_history(rid))
+
+
+@app.route('/api/plan-stats', methods=['GET'])
+def api_plan_stats():
+    user = current_user()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    return jsonify(DB.get_plan_stats())
+
+
+@app.route('/api/plan-report', methods=['GET'])
+def api_plan_report():
+    """Generate a report with filters. Supports CSV export."""
+    user = current_user()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    filters = {}
+    for k in ('plan_id', 'village', 'province_id', 'county_id', 'status_category'):
+        v = request.args.get(k)
+        if v:
+            filters[k] = v
+    if user['role'] == 'provincial':
+        filters['province_id'] = user.get('province_id') or ''
+    elif user['role'] == 'county':
+        filters['county_id'] = user.get('county_id') or ''
+    records = DB.list_plan_records(filters if filters else None)
+    # Enrich with plan name and field labels
+    plan_cache = {}
+    for r in records:
+        pid = r.get('plan_id')
+        if pid not in plan_cache:
+            plan_cache[pid] = DB.get_plan(pid)
+        p = plan_cache.get(pid) or {}
+        r['plan_name'] = p.get('name', '')
+        r['status_label'] = STATUS_LABELS.get(r.get('status_category'), r.get('status_category', ''))
+    # CSV export
+    if request.args.get('format') == 'csv':
+        import csv, io
+        out = io.StringIO()
+        w = csv.writer(out)
+        w.writerow(['طرح', 'روستا', 'وضعیت', 'کارشناس', 'واحد', 'تاریخ', 'توضیحات', 'تاریخ ثبت'])
+        for r in records:
+            w.writerow([r.get('plan_name',''), r.get('village',''), r.get('status_label',''),
+                       r.get('expert_name',''), r.get('org',''), r.get('service_date',''),
+                       r.get('description',''), r.get('created_at','')])
+        resp = make_response(out.getvalue())
+        resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        resp.headers['Content-Disposition'] = 'attachment; filename="plan_report.csv"'
+        return resp
+    return jsonify(records)
 
 
 # ----- Main -----
