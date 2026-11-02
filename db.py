@@ -1033,12 +1033,21 @@ def get_plan_record(rid):
 
 def find_plan_record(plan_id, village, province_id='', county_id=''):
     """Find an existing record for this plan+village combination."""
-    return _fetchone(
-        'SELECT * FROM plan_records WHERE plan_id=? AND village=? AND '
-        '(province_id=? OR (province_id IS NULL AND ?="")) AND '
-        '(county_id=? OR (county_id IS NULL AND ?=""))',
-        (plan_id, village, province_id, province_id, county_id, county_id)
-    )
+    pid = province_id or None
+    cid = county_id or None
+    sql = 'SELECT * FROM plan_records WHERE plan_id=? AND village=?'
+    params = [plan_id, village]
+    if pid:
+        sql += ' AND province_id=?'
+        params.append(pid)
+    else:
+        sql += ' AND province_id IS NULL'
+    if cid:
+        sql += ' AND county_id=?'
+        params.append(cid)
+    else:
+        sql += ' AND county_id IS NULL'
+    return _fetchone(sql, tuple(params))
 
 
 def add_plan_record(plan_id, village, status_category, field_values=None, province_id='',
