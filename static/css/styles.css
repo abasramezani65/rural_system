@@ -587,7 +587,7 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   padding: 16px;
   /* Classic gradient background - no image, very lightweight */
   background:
@@ -597,7 +597,7 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
     /* Main diagonal gradient */
     linear-gradient(135deg, #1a2540 0%, #2d3f6e 50%, #1f2b50 100%);
   background-color: #1a2540;
-  overflow: auto;
+  overflow-y: auto;
 }
 
 /* Subtle dot pattern overlay */
@@ -622,8 +622,8 @@ html[data-theme="dark"] .badge { background: linear-gradient(135deg, #1d2a4d, #2
   position: relative;
   z-index: 3;
   width: 100%;
-  max-width: 420px; /* exactly matches .login-card max-width */
-  margin-top: 3vh;  /* small top margin from page top */
+  max-width: 420px;
+  margin: 0 auto;
   text-align: center;
 }
 
@@ -678,7 +678,7 @@ html[data-theme="dark"] .login-card {
 .login-banner-container {
   width: 100%;
   max-width: 420px;
-  margin-top: 4px;
+  margin: 4px auto 0;
   text-align: center;
 }
 .login-banner-container:empty { display: none; }
@@ -699,7 +699,7 @@ html[data-theme="dark"] .login-card {
 .login-announcement-list {
   width: 100%;
   max-width: 420px;
-  margin-top: 12px;
+  margin: 12px auto 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -971,7 +971,7 @@ html[data-theme="dark"] .login-demo b { color: var(--ink); }
   .dynamic-fields { grid-template-columns: 1fr; }
   .tab { padding: 8px 12px; font-size: 13px; }
   .login-card { padding: 20px 22px 18px; }
-  .login-brand-wrap { margin-top: 4vh; max-width: 95%; }
+  .login-brand-wrap { margin: 0 auto; max-width: 95%; }
   .theme-toggle { top: 14px; left: 14px; padding: 6px 10px; font-size: 11px; }
 }
 
@@ -980,7 +980,7 @@ html[data-theme="dark"] .login-demo b { color: var(--ink); }
   .nav { gap: 4px; padding: 6px; }
   .tab { padding: 7px 10px; font-size: 11.5px; }
   .login-card { padding: 18px 18px 16px; }
-  .login-brand-wrap { margin-top: 3vh; max-width: 98%; }
+  .login-brand-wrap { margin: 0 auto; max-width: 98%; }
 }
 
 /* ===== UTILITY ===== */
@@ -1049,4 +1049,120 @@ html[data-theme="dark"] .login-demo b { color: var(--ink); }
 .admin-section-link .arrow {
   color: var(--muted);
   font-size: 18px;
+}
+
+/* ===== PLAN MANAGEMENT STYLES ===== */
+
+/* Status tabs */
+.plan-status-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0;
+  border-bottom: 2px solid var(--line);
+}
+.plan-tab {
+  background: none;
+  color: var(--muted);
+  padding: 10px 18px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all .15s;
+}
+.plan-tab:hover { color: var(--ink); }
+.plan-tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+  background: rgba(59,89,152,.05);
+}
+
+/* Plan list container */
+.plan-list-container {
+  margin: 12px 0;
+  min-height: 50px;
+}
+.plan-select-item {
+  background: var(--bg-alt);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  transition: all .15s;
+}
+.plan-select-item.checked {
+  border-color: var(--blue);
+  background: rgba(59,89,152,.08);
+}
+.plan-select-item.duplicate {
+  opacity: .55;
+  background: var(--red-bg);
+}
+.plan-select-item .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.plan-select-item .check b { font-size: 14px; }
+
+/* Plan form cards */
+.plan-form-card {
+  background: var(--white);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 12px;
+}
+.plan-form-card h3 {
+  margin: 0 0 10px;
+  color: var(--blue);
+  font-size: 15px;
+}
+.plan-form-card .grid { grid-template-columns: 1fr 1fr; }
+
+/* Admin plan items */
+.plans-admin-list { margin-top: 12px; }
+.plan-admin-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-alt);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.plan-admin-item.inactive { opacity: .5; }
+.plan-admin-info { flex: 1; }
+.plan-admin-info b { font-size: 14px; color: var(--navy); }
+.plan-admin-info .hint { display: block; margin: 2px 0; }
+.plan-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.plan-admin-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.plan-admin-actions button { padding: 5px 12px; font-size: 12px; }
+
+/* Plan stats grid */
+.plan-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.plan-stat {
+  background: var(--bg-alt);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+.plan-stat b {
+  display: block;
+  font-size: 22px;
+  color: var(--blue);
+  font-weight: 700;
+}
+.plan-stat span { font-size: 11px; color: var(--muted); }
+@media (max-width: 600px) {
+  .plan-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .plan-form-card .grid { grid-template-columns: 1fr; }
 }
