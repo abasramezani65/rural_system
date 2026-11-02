@@ -1675,14 +1675,16 @@ function renderFieldInput(f, pid) {
     case 'date':
       input = `<input id="${key}" type="text"${req} placeholder="مثلاً ۱۴۰۵/۰۷/۲۰">`;
       break;
-    case 'select_single':
+    case 'select_single': {
       const opts1 = (f.options||[]).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
       input = `<select id="${key}"${req}><option value="">انتخاب...</option>${opts1}</select>`;
       break;
-    case 'select_multi':
+    }
+    case 'select_multi': {
       const opts2 = (f.options||[]).map(o => `<label class="check"><input type="checkbox" class="${key}" value="${esc(o)}"> ${esc(o)}</label>`).join(' ');
       input = `<div>${opts2}</div>`;
       break;
+    }
     case 'checkbox':
       input = `<label class="check"><input id="${key}" type="checkbox"> بله</label>`;
       break;
