@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS records (
   beneficiaries INTEGER DEFAULT 0,
   description TEXT,
   evidence TEXT,
-  custom_values TEXT,
+  custom_values TEXT,  -- JSON object
   created_by_user_id TEXT,
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -113,18 +113,18 @@ CREATE TABLE IF NOT EXISTS custom_fields (
   id TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'text',
-  scope TEXT NOT NULL DEFAULT 'all',
+  scope TEXT NOT NULL DEFAULT 'all',  -- 'all' or service_id
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Settings (key-value)
+-- Settings (key-value) - تنظیمات سامانه
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT
 );
 
--- Geo Catalog (تقسیمات کشوری)
+-- Geo Catalog (تقسیمات کشوری - روستاها)
 CREATE TABLE IF NOT EXISTS geo_catalog (
   id TEXT PRIMARY KEY,
   province_name TEXT NOT NULL,
@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS geo_catalog (
   UNIQUE(province_name, county_name, district_name, village_name)
 );
 
--- Login announcements
+-- Login announcements (پیام‌های مناسبتی روی صفحه ورود)
 CREATE TABLE IF NOT EXISTS login_announcements (
   id TEXT PRIMARY KEY,
   text TEXT NOT NULL,
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS login_announcements (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Login banners
+-- Login banners (بنر تصویری روی صفحه ورود)
 CREATE TABLE IF NOT EXISTS login_banners (
   id TEXT PRIMARY KEY,
   image_data TEXT NOT NULL,
@@ -157,16 +157,93 @@ CREATE TABLE IF NOT EXISTS login_banners (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Core field config
+-- Core field config (عناوین فیلدهای اصلی)
 CREATE TABLE IF NOT EXISTS core_fields (
   field_key TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   visible INTEGER NOT NULL DEFAULT 1
 );
 
--- Indexes
+-- ===== PLAN MANAGEMENT SYSTEM (سامانه طرح‌های پویا) =====
+
+CREATE TABLE IF NOT EXISTS plans (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  description     TEXT,
+  active          INTEGER NOT NULL DEFAULT 1,
+  allow_duplicate INTEGER NOT NULL DEFAULT 0,
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  created_by      TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS plan_status_allowed (
+  id              TEXT PRIMARY KEY,
+  plan_id         TEXT NOT NULL,
+  status_category TEXT NOT NULL,
+  UNIQUE(plan_id, status_category),
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS plan_fields (
+  id          TEXT PRIMARY KEY,
+  plan_id     TEXT NOT NULL,
+  field_key   TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  type        TEXT NOT NULL DEFAULT 'text',
+  required    INTEGER NOT NULL DEFAULT 0,
+  options     TEXT,
+  help_text   TEXT,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  active      INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS plan_records (
+  id              TEXT PRIMARY KEY,
+  plan_id         TEXT NOT NULL,
+  province_id     TEXT,
+  county_id       TEXT,
+  district_id     TEXT,
+  village         TEXT NOT NULL,
+  status_category TEXT NOT NULL,
+  field_values    TEXT,
+  expert_name     TEXT,
+  role_id         TEXT,
+  org             TEXT,
+  service_date    TEXT,
+  description     TEXT,
+  created_by      TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(plan_id, village, province_id, county_id),
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL,
+  FOREIGN KEY (province_id) REFERENCES provinces(id) ON DELETE SET NULL,
+  FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS plan_status_history (
+  id              TEXT PRIMARY KEY,
+  plan_record_id  TEXT NOT NULL,
+  old_status      TEXT,
+  new_status      TEXT NOT NULL,
+  changed_by      TEXT,
+  changed_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  note            TEXT,
+  FOREIGN KEY (plan_record_id) REFERENCES plan_records(id) ON DELETE CASCADE
+);
+
+-- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_records_province ON records(province_id);
 CREATE INDEX IF NOT EXISTS idx_records_county ON records(county_id);
 CREATE INDEX IF NOT EXISTS idx_records_service ON records(service_id);
 CREATE INDEX IF NOT EXISTS idx_records_village ON records(village);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_plan_records_plan ON plan_records(plan_id);
+CREATE INDEX IF NOT EXISTS idx_plan_records_village ON plan_records(village);
+CREATE INDEX IF NOT EXISTS idx_plan_records_status ON plan_records(status_category);
+CREATE INDEX IF NOT EXISTS idx_plan_fields_plan ON plan_fields(plan_id);
+CREATE INDEX IF NOT EXISTS idx_plan_status_allowed_plan ON plan_status_allowed(plan_id);
