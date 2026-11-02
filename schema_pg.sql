@@ -172,9 +172,91 @@ CREATE TABLE IF NOT EXISTS core_fields (
   visible INTEGER NOT NULL DEFAULT 1
 );
 
+-- ===== PLAN MANAGEMENT SYSTEM (سامانه طرح‌های پویا) =====
+
+-- Plans (طرح‌ها)
+CREATE TABLE IF NOT EXISTS plans (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  description     TEXT,
+  active          INTEGER NOT NULL DEFAULT 1,
+  allow_duplicate INTEGER NOT NULL DEFAULT 0,
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  created_by      TEXT,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Plan status allowed (دسته‌های وضعیت مجاز برای هر طرح)
+CREATE TABLE IF NOT EXISTS plan_status_allowed (
+  id              TEXT PRIMARY KEY,
+  plan_id         TEXT NOT NULL,
+  status_category TEXT NOT NULL CHECK(status_category IN ('done','in_progress','capacity')),
+  UNIQUE(plan_id, status_category),
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
+);
+
+-- Plan fields (فیلدهای اختصاصی هر طرح)
+CREATE TABLE IF NOT EXISTS plan_fields (
+  id          TEXT PRIMARY KEY,
+  plan_id     TEXT NOT NULL,
+  field_key   TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  type        TEXT NOT NULL DEFAULT 'text',
+  required    INTEGER NOT NULL DEFAULT 0,
+  options     TEXT,
+  help_text   TEXT,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  active      INTEGER NOT NULL DEFAULT 1,
+  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
+);
+
+-- Plan records (ثبت طرح برای یک روستا)
+CREATE TABLE IF NOT EXISTS plan_records (
+  id              TEXT PRIMARY KEY,
+  plan_id         TEXT NOT NULL,
+  province_id     TEXT,
+  county_id       TEXT,
+  district_id     TEXT,
+  village         TEXT NOT NULL,
+  status_category TEXT NOT NULL CHECK(status_category IN ('done','in_progress','capacity')),
+  field_values    TEXT,
+  expert_name     TEXT,
+  role_id         TEXT,
+  org             TEXT,
+  service_date    TEXT,
+  description     TEXT,
+  created_by      TEXT,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(plan_id, village, province_id, county_id),
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL,
+  FOREIGN KEY (province_id) REFERENCES provinces(id) ON DELETE SET NULL,
+  FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE SET NULL
+);
+
+-- Plan status history (تاریخچه تغییر وضعیت)
+CREATE TABLE IF NOT EXISTS plan_status_history (
+  id              TEXT PRIMARY KEY,
+  plan_record_id  TEXT NOT NULL,
+  old_status      TEXT,
+  new_status      TEXT NOT NULL,
+  changed_by      TEXT,
+  changed_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  note            TEXT,
+  FOREIGN KEY (plan_record_id) REFERENCES plan_records(id) ON DELETE CASCADE
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_records_province ON records(province_id);
 CREATE INDEX IF NOT EXISTS idx_records_county ON records(county_id);
 CREATE INDEX IF NOT EXISTS idx_records_service ON records(service_id);
 CREATE INDEX IF NOT EXISTS idx_records_village ON records(village);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_plan_records_plan ON plan_records(plan_id);
+CREATE INDEX IF NOT EXISTS idx_plan_records_village ON plan_records(village);
+CREATE INDEX IF NOT EXISTS idx_plan_records_status ON plan_records(status_category);
+CREATE INDEX IF NOT EXISTS idx_plan_fields_plan ON plan_fields(plan_id);
+CREATE INDEX IF NOT EXISTS idx_plan_status_allowed_plan ON plan_status_allowed(plan_id);
