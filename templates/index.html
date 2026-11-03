@@ -239,14 +239,24 @@
 
   <!-- ADMIN -->
   <section id="admin" class="panel">
-    <!-- Section nav -->
-    <div class="card" style="padding:14px 18px">
-      <h2 style="margin:0 0 10px">پنل مدیریت</h2>
-      <div class="admin-section-list" id="adminSectionList"></div>
-    </div>
+    <!-- Admin Sidebar Layout -->
+    <div class="admin-layout">
+      <!-- Sidebar Menu -->
+      <div class="admin-sidebar">
+        <h3 class="admin-sidebar-title">پنل مدیریت</h3>
+        <button class="admin-menu-item active" data-admin-section="planManagementCard">🎯 طرح‌های پویا</button>
+        <button class="admin-menu-item" data-admin-section="loginContentCard">🔔 اعلان‌های ورود</button>
+        <button class="admin-menu-item" data-admin-section="accessManagementCard">👥 کاربران و دسترسی</button>
+        <button class="admin-menu-item" data-admin-section="loginDesignCard">🎨 طراحی ورود</button>
+        <button class="admin-menu-item" data-admin-section="brandingCard">📝 عنوان و اعلان‌ها</button>
+        <button class="admin-menu-item" data-admin-section="customFieldsCard">📋 فیلدهای فرم</button>
+        <button class="admin-menu-item" data-admin-section="geoCard">🗺 استان‌ها و شهرستان‌ها</button>
+      </div>
+      <!-- Content Area -->
+      <div class="admin-content">
 
     <!-- Login announcements & banners management -->
-    <div class="card collapsible" id="loginContentCard">
+    <div class="card collapsible expanded admin-section" id="loginContentCard" style="display:none">
       <div class="card-header"><h2>مدیریت اعلان‌ها و بنر صفحه ورود</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <h3>پیام‌های مناسبتی و اعلان‌ها</h3>
@@ -276,7 +286,7 @@
     </div>
 
     <!-- PLAN MANAGEMENT (مدیریت طرح‌ها) -->
-    <div class="card collapsible expanded" id="planManagementCard">
+    <div class="card collapsible expanded admin-section" id="planManagementCard">
       <div class="card-header"><h2>🎯 مدیریت طرح‌های پویا</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <!-- Stats -->
@@ -312,7 +322,7 @@
     </div>
 
     <!-- PLAN FIELDS MODAL (مدیریت فیلدهای طرح) -->
-    <div class="card collapsible" id="planFieldsCard" style="display:none">
+    <div class="card collapsible expanded admin-section" id="planFieldsCard" style="display:none">
       <div class="card-header"><h2>مدیریت فیلدهای طرح: <span id="planFieldsTitle"></span></h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <div class="grid three">
@@ -339,7 +349,7 @@
     </div>
 
     <!-- User management -->
-    <div class="card collapsible" id="accessManagementCard">
+    <div class="card collapsible expanded admin-section" id="accessManagementCard">
       <div class="card-header"><h2>مدیریت کاربران و سطح دسترسی</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <p class="hint">مدیر کشوری برای هر کاربر سطح کشوری، استانی یا شهرستانی تعیین می‌کند.</p>
@@ -360,7 +370,7 @@
     </div>
 
     <!-- Login design -->
-    <div class="card collapsible">
+    <div class="card collapsible expanded admin-section" id="loginDesignCard">
       <div class="card-header"><h2>طراحی و شخصی‌سازی صفحه ورود</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <div class="grid three">
@@ -387,7 +397,7 @@
     </div>
 
     <!-- Branding -->
-    <div class="card collapsible">
+    <div class="card collapsible expanded admin-section" id="brandingCard">
       <div class="card-header"><h2>تنظیمات عنوان، لوگو و اعلان‌ها</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <div class="grid">
@@ -407,7 +417,7 @@
     </div>
 
     <!-- Custom fields -->
-    <div class="card collapsible">
+    <div class="card collapsible expanded admin-section" id="customFieldsCard">
       <div class="card-header"><h2>مدیریت فیلدهای فرم</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <p class="hint">فیلدهای سفارشی برای جمع‌آوری اطلاعات اضافی در فرم ثبت.</p>
@@ -424,7 +434,7 @@
     </div>
 
     <!-- Geo -->
-    <div class="card collapsible">
+    <div class="card collapsible expanded admin-section" id="geoCard">
       <div class="card-header"><h2>مدیریت استان‌ها و شهرستان‌ها</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <div class="grid">
@@ -438,6 +448,9 @@
         <div id="geoList" style="margin-top:12px"></div>
       </div>
     </div>
+
+      </div><!-- /admin-content -->
+    </div><!-- /admin-layout -->
   </section>
 
   <!-- BACKUP -->
