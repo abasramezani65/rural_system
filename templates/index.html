@@ -213,10 +213,18 @@
 
     <!-- Charts -->
     <div class="chart-container">
-      <h2>نمودارهای آماری</h2>
-      <div class="grid two" style="grid-template-columns:1fr 1fr">
+      <div class="actions" style="justify-content:space-between;margin-top:0;flex-wrap:wrap">
+        <h2 style="margin:0">نمودارهای آماری</h2>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="chart-dim-btn active" data-dim="plan">بر اساس طرح</button>
+          <button class="chart-dim-btn" data-dim="province">بر اساس استان</button>
+          <button class="chart-dim-btn" data-dim="county">بر اساس شهرستان</button>
+          <button class="chart-dim-btn" data-dim="village">بر اساس روستا</button>
+        </div>
+      </div>
+      <div class="grid two" style="grid-template-columns:1fr 1fr;margin-top:12px">
         <div>
-          <h3>توزیع ثبت بر اساس طرح</h3>
+          <h3 id="chartBarTitle">توزیع ثبت بر اساس طرح</h3>
           <div class="chart-canvas-wrap"><canvas id="chartPlanDist"></canvas></div>
         </div>
         <div>
