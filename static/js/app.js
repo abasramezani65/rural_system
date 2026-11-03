@@ -342,20 +342,20 @@ function renderTicker() {
 }
 
 function renderBaseSelects() {
-  // Roles
+  // Roles (old form removed — null check)
   const roleSel = document.getElementById('expertRole');
-  roleSel.innerHTML = '<option value="">انتخاب سمت</option>' +
+  if (roleSel) roleSel.innerHTML = '<option value="">انتخاب سمت</option>' +
     State.roles.filter(r => r.active).map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
-  // Services
+  // Services (old form removed — null check)
   const svcSel = document.getElementById('service');
-  svcSel.innerHTML = '<option value="">انتخاب خدمت</option>' +
+  if (svcSel) svcSel.innerHTML = '<option value="">انتخاب خدمت</option>' +
     State.services.filter(s => s.active).map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-  // Provinces
+  // Provinces (old form removed — null check)
   const provSel = document.getElementById('province');
-  provSel.innerHTML = '<option value="">انتخاب استان</option>' +
+  if (provSel) provSel.innerHTML = '<option value="">انتخاب استان</option>' +
     State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-  // Reset county
-  fillCountySelect();
+  // Reset county (only if old form exists)
+  if (document.getElementById('province') && document.getElementById('county')) fillCountySelect();
   // User form
   renderUserCountySelects();
   // Province for county
@@ -365,8 +365,10 @@ function renderBaseSelects() {
 }
 
 function fillCountySelect() {
-  const provId = document.getElementById('province').value;
+  const provEl = document.getElementById('province');
   const csel = document.getElementById('county');
+  if (!provEl || !csel) return;
+  const provId = provEl.value;
   const prov = State.provinces.find(p => p.id === provId);
   csel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
     (prov ? prov.counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
