@@ -630,6 +630,7 @@ function renderCharts() {
 // ----- Admin: roles -----
 function renderRoles() {
   const el = document.getElementById('roleList');
+  if (!el) return;
   if (!State.roles.length) { el.innerHTML = '<div class="empty">سمتی تعریف نشده</div>'; return; }
   el.innerHTML = '<table><thead><tr><th>عنوان</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
     State.roles.map(r => `<tr>
@@ -663,6 +664,7 @@ function renderRoles() {
 // ----- Admin: services -----
 function renderServicesAdmin() {
   const el = document.getElementById('serviceListAdmin');
+  if (!el) return;
   if (!State.services.length) { el.innerHTML = '<div class="empty">خدمتی تعریف نشده</div>'; return; }
   el.innerHTML = '<table><thead><tr><th>عنوان</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
     State.services.map(s => `<tr>
@@ -1083,7 +1085,7 @@ async function init() {
   });
   document.getElementById('userProvince').addEventListener('change', fillUserCounties);
 
-  document.getElementById('saveUser').addEventListener('click', async () => {
+  document.getElementById('saveUser')?.addEventListener('click', async () => {
     const data = {
       id: State.editingUserId,
       name: document.getElementById('userFullName').value.trim(),
@@ -1105,37 +1107,10 @@ async function init() {
       toast('کاربر ذخیره شد.');
     } catch (e) { toast(e.message, 'error'); }
   });
-  document.getElementById('cancelUserEdit').addEventListener('click', resetUserForm);
+  document.getElementById('cancelUserEdit')?.addEventListener('click', resetUserForm);
 
-  // Roles / services / provinces / counties
-  document.getElementById('addRole').addEventListener('click', async () => {
-    const name = document.getElementById('newRole').value.trim();
-    if (!name) return;
-    try {
-      const resp = await api('/api/roles', { method: 'POST', body: { name } });
-      State.roles.push({ id: resp.id, name, active: 1 });
-      document.getElementById('newRole').value = '';
-      renderRoles();
-      renderBaseSelects();
-      toast('سمت اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  document.getElementById('addService').addEventListener('click', async () => {
-    const name = document.getElementById('newService').value.trim();
-    if (!name) return;
-    try {
-      const resp = await api('/api/services', { method: 'POST', body: { name } });
-      State.services.push({ id: resp.id, name, active: 1 });
-      document.getElementById('newService').value = '';
-      renderServicesAdmin();
-      renderBaseSelects();
-      renderFilterServices();
-      toast('خدمت اضافه شد.');
-    } catch (e) { toast(e.message, 'error'); }
-  });
-
-  document.getElementById('addProvince').addEventListener('click', async () => {
+  // Provinces / counties (roles & services removed)
+  document.getElementById('addProvince')?.addEventListener('click', async () => {
     const name = document.getElementById('newProvince').value.trim();
     if (!name) return;
     try {
@@ -1146,11 +1121,12 @@ async function init() {
       renderBaseSelects();
       renderFilterSelects();
       renderUserCountySelects();
+      renderPlanRegistration();
       toast('استان اضافه شد.');
     } catch (e) { toast(e.message, 'error'); }
   });
 
-  document.getElementById('addCounty').addEventListener('click', async () => {
+  document.getElementById('addCounty')?.addEventListener('click', async () => {
     const pid = document.getElementById('provinceForCounty').value;
     const name = document.getElementById('newCounty').value.trim();
     if (!pid || !name) { toast('استان و نام شهرستان الزامی است.', 'error'); return; }
