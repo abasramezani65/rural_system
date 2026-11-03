@@ -1252,6 +1252,7 @@ html[data-theme="dark"] .modal-box {
   font-weight: 700;
 }
 .form-section-title:first-child { margin-top: 0; }
+.form-section-title:not(:first-child) { margin-top: 24px; }
 
 .grid.four { grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .geo-fields select, .geo-fields input {
