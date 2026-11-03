@@ -239,6 +239,9 @@ async function loadState() {
   if (document.getElementById('plansAdminList')) renderPlansAdmin();
   if (document.getElementById('planListContainer')) renderPlanRegistration();
   if (document.getElementById('reportPlanFilter')) populatePlanReportFilter();
+  // Init and render dashboard
+  initDashboard();
+  renderDashboard();
   return data;
 }
 
@@ -1972,4 +1975,186 @@ document.addEventListener('DOMContentLoaded', () => {
       sec.classList.toggle('active-section', sec.id === targetId);
     });
   }
+});
+
+// ===== PLAN DASHBOARD (داشبورد طرح‌محور) =====
+let dashCharts = {};
+
+function initDashboard() {
+  // Populate plan filter
+  const planSel = document.getElementById('dashPlanFilter');
+  if (planSel) {
+    planSel.innerHTML = '<option value="">همه طرح‌ها</option>' +
+      (State.plans||[]).filter(p => p.active).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  }
+  // Populate province filter
+  const provSel = document.getElementById('dashProvinceFilter');
+  if (provSel) {
+    provSel.innerHTML = '<option value="">همه استان‌ها</option>' +
+      (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  }
+  // County cascading
+  if (provSel) provSel.onchange = () => {
+    const pid = provSel.value;
+    const csel = document.getElementById('dashCountyFilter');
+    if (!csel) return;
+    const prov = State.provinces.find(p => p.id === pid);
+    csel.innerHTML = '<option value="">همه شهرستان‌ها</option>' +
+      (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+  };
+  // Buttons
+  const applyBtn = document.getElementById('applyDashFilter');
+  if (applyBtn) applyBtn.onclick = renderDashboard;
+  const clearBtn = document.getElementById('clearDashFilter');
+  if (clearBtn) clearBtn.onclick = () => {
+    document.getElementById('dashPlanFilter').value = '';
+    document.getElementById('dashStatusFilter').value = '';
+    document.getElementById('dashProvinceFilter').value = '';
+    document.getElementById('dashCountyFilter').innerHTML = '<option value="">همه شهرستان‌ها</option>';
+    document.getElementById('dashVillageFilter').value = '';
+    renderDashboard();
+  };
+  const exportBtn = document.getElementById('exportDashCSV');
+  if (exportBtn) exportBtn.onclick = exportDashboardCSV;
+}
+
+async function renderDashboard() {
+  // Build filter params
+  const params = new URLSearchParams();
+  const planId = document.getElementById('dashPlanFilter')?.value;
+  const status = document.getElementById('dashStatusFilter')?.value;
+  const village = document.getElementById('dashVillageFilter')?.value.trim();
+  const provinceId = document.getElementById('dashProvinceFilter')?.value;
+  const countyId = document.getElementById('dashCountyFilter')?.value;
+  if (planId) params.set('plan_id', planId);
+  if (status) params.set('status_category', status);
+  if (village) params.set('village', village);
+  if (provinceId) params.set('province_id', provinceId);
+  if (countyId) params.set('county_id', countyId);
+  
+  // Fetch filtered records
+  let records = [];
+  try {
+    records = await api(`/api/plan-report?${params}`);
+  } catch(e) { console.error('Dashboard fetch error:', e); }
+  
+  // Calculate stats
+  const total = records.length;
+  const done = records.filter(r => r.status_category === 'done').length;
+  const inProg = records.filter(r => r.status_category === 'in_progress').length;
+  const cap = records.filter(r => r.status_category === 'capacity').length;
+  const villages = new Set(records.map(r => r.village)).size;
+  const plans = new Set(records.map(r => r.plan_id)).size;
+  const provinces = new Set(records.map(r => r.province_id).filter(Boolean)).size;
+  const counties = new Set(records.map(r => r.county_id).filter(Boolean)).size;
+  
+  // Update stats
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fa(val); };
+  set('dashTotalRecords', total);
+  set('dashDone', done);
+  set('dashInProgress', inProg);
+  set('dashCapacity', cap);
+  set('dashVillages', villages);
+  set('dashPlans', plans);
+  set('dashProvinces', provinces);
+  set('dashCounties', counties);
+  
+  // Render charts
+  renderDashboardCharts(records);
+  
+  // Render table
+  renderDashboardTable(records);
+}
+
+function renderDashboardCharts(records) {
+  // Destroy old charts
+  Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
+  dashCharts = {};
+  
+  // Chart 1: Distribution by plan (bar)
+  const planCounts = {};
+  records.forEach(r => {
+    const name = r.plan_name || 'نامشخص';
+    planCounts[name] = (planCounts[name] || 0) + 1;
+  });
+  const planLabels = Object.keys(planCounts);
+  const planData = Object.values(planCounts);
+  
+  const ctx1 = document.getElementById('chartPlanDist');
+  if (ctx1 && planLabels.length) {
+    dashCharts.planDist = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: planLabels,
+        datasets: [{ label: 'تعداد ثبت', data: planData, backgroundColor: '#3156a5', borderRadius: 6 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+  
+  // Chart 2: Status breakdown (doughnut)
+  const statusLabels = ['انجام‌شده', 'در حال انجام', 'ظرفیت انجام'];
+  const statusData = [
+    records.filter(r => r.status_category === 'done').length,
+    records.filter(r => r.status_category === 'in_progress').length,
+    records.filter(r => r.status_category === 'capacity').length,
+  ];
+  const ctx2 = document.getElementById('chartStatusDist');
+  if (ctx2 && statusData.some(d => d > 0)) {
+    dashCharts.statusDist = new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: statusLabels,
+        datasets: [{ data: statusData, backgroundColor: ['#15803d', '#d59a19', '#8b94ac'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+}
+
+function renderDashboardTable(records) {
+  const el = document.getElementById('dashResults');
+  if (!el) return;
+  if (!records.length) {
+    el.innerHTML = '<div class="empty">موردی یافت نشد.</div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr>
+      <th>طرح</th><th>روستا</th><th>وضعیت</th><th>کارشناس</th><th>تاریخ</th><th>توضیحات</th><th>تاریخ ثبت</th>
+    </tr></thead>
+    <tbody>
+      ${records.map(r => `<tr>
+        <td>${esc(r.plan_name || '')}</td>
+        <td>${esc(r.village)}</td>
+        <td>${STATUS_ICONS[r.status_category] || ''} ${STATUS_LABELS[r.status_category] || r.status_category}</td>
+        <td>${esc(r.expert_name || '')}</td>
+        <td>${esc(r.service_date || '')}</td>
+        <td>${esc((r.description || '').substring(0, 50))}${(r.description||'').length > 50 ? '...' : ''}</td>
+        <td>${esc((r.created_at || '').slice(0, 10))}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function exportDashboardCSV() {
+  const params = new URLSearchParams();
+  params.set('format', 'csv');
+  const planId = document.getElementById('dashPlanFilter')?.value;
+  const status = document.getElementById('dashStatusFilter')?.value;
+  const village = document.getElementById('dashVillageFilter')?.value.trim();
+  const provinceId = document.getElementById('dashProvinceFilter')?.value;
+  const countyId = document.getElementById('dashCountyFilter')?.value;
+  if (planId) params.set('plan_id', planId);
+  if (status) params.set('status_category', status);
+  if (village) params.set('village', village);
+  if (provinceId) params.set('province_id', provinceId);
+  if (countyId) params.set('county_id', countyId);
+  window.location.href = `/api/plan-report?${params}`;
+}
+
+// Init dashboard on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initDashboard();
 });
