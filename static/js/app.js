@@ -2019,6 +2019,8 @@ function initDashboard() {
   };
   const exportBtn = document.getElementById('exportDashCSV');
   if (exportBtn) exportBtn.onclick = exportDashboardCSV;
+  const excelBtn = document.getElementById('exportDashExcel');
+  if (excelBtn) excelBtn.onclick = exportDashboardExcel;
 }
 
 async function renderDashboard() {
@@ -2155,6 +2157,61 @@ function exportDashboardCSV() {
   if (provinceId) params.set('province_id', provinceId);
   if (countyId) params.set('county_id', countyId);
   window.location.href = `/api/plan-report?${params}`;
+}
+
+async function exportDashboardExcel() {
+  // Fetch filtered data
+  const params = new URLSearchParams();
+  const planId = document.getElementById('dashPlanFilter')?.value;
+  const status = document.getElementById('dashStatusFilter')?.value;
+  const village = document.getElementById('dashVillageFilter')?.value.trim();
+  const provinceId = document.getElementById('dashProvinceFilter')?.value;
+  const countyId = document.getElementById('dashCountyFilter')?.value;
+  if (planId) params.set('plan_id', planId);
+  if (status) params.set('status_category', status);
+  if (village) params.set('village', village);
+  if (provinceId) params.set('province_id', provinceId);
+  if (countyId) params.set('county_id', countyId);
+  
+  let records = [];
+  try {
+    records = await api(`/api/plan-report?${params}`);
+  } catch(e) { toast('خطا در دریافت داده: ' + e.message, 'error'); return; }
+  
+  if (!records.length) { toast('داده‌ای برای خروجی وجود ندارد', 'error'); return; }
+  
+  // Build worksheet data
+  const header = ['ردیف', 'طرح', 'روستا', 'استان', 'شهرستان', 'وضعیت', 'کارشناس', 'واحد مجری', 'تاریخ اجرا', 'توضیحات', 'تاریخ ثبت'];
+  const rows = records.map((r, i) => [
+    i + 1,
+    r.plan_name || '',
+    r.village || '',
+    r.province_name || r.province_id || '',
+    r.county_name || r.county_id || '',
+    STATUS_LABELS[r.status_category] || r.status_category || '',
+    r.expert_name || '',
+    r.org || '',
+    r.service_date || '',
+    r.description || '',
+    (r.created_at || '').slice(0, 10),
+  ]);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  // Set column widths
+  ws['!cols'] = [
+    {wch: 5}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15},
+    {wch: 20}, {wch: 20}, {wch: 12}, {wch: 40}, {wch: 12}
+  ];
+  
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'گزارش طرح‌ها');
+  
+  // Generate and download
+  const dateStr = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `گزارش_طرح‌ها_${dateStr}.xlsx`);
+  toast('فایل Excel دانلود شد', 'success');
 }
 
 // Init dashboard on page load
