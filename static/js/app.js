@@ -1739,6 +1739,11 @@ async function renderPlanForms() {
     return;
   }
   if (actions) actions.style.display = '';
+  // Only show plan-specific fields for "done" (انجام‌شده) status
+  if (State.selectedPlanStatus !== 'done') {
+    container.innerHTML = '<p class="hint" style="margin-top:12px">📝 برای وضعیت‌های «در حال انجام» و «دارای ظرفیت انجام»، ثبت فیلدهای اختصاصی الزامی نیست. اطلاعات طرح با همان انتخاب ثبت می‌شود.</p>';
+    return;
+  }
   const forms = [];
   for (const pid of State.selectedPlans) {
     const plan = State.plans.find(p => p.id === pid);
