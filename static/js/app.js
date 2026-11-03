@@ -1982,6 +1982,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ===== PLAN DASHBOARD (داشبورد طرح‌محور) =====
 let dashCharts = {};
+let dashChartDim = 'plan';
+let dashLastRecords = [];
+const DIM_LABELS = {
+  plan: {field: 'plan_name', title: 'بر اساس طرح', fallback: 'نامشخص'},
+  province: {field: 'province_name', title: 'بر اساس استان', fallback: 'بدون استان'},
+  county: {field: 'county_name', title: 'بر اساس شهرستان', fallback: 'بدون شهرستان'},
+  village: {field: 'village', title: 'بر اساس روستا', fallback: 'بدون روستا'},
+};
 
 function initDashboard() {
   // Populate plan multi-select
@@ -2015,6 +2023,15 @@ function initDashboard() {
   if (exportBtn) exportBtn.onclick = exportDashboardCSV;
   const excelBtn = document.getElementById('exportDashExcel');
   if (excelBtn) excelBtn.onclick = exportDashboardExcel;
+  // Chart dimension buttons
+  document.querySelectorAll('.chart-dim-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.chart-dim-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      dashChartDim = btn.dataset.dim;
+      if (dashLastRecords.length) renderDashboardCharts(dashLastRecords);
+    };
+  });
 }
 
 function toggleMs(id) {
@@ -2112,6 +2129,9 @@ async function renderDashboard() {
   set('dashProvinces', provinces);
   set('dashCounties', counties);
   
+  // Store records for chart re-rendering
+  dashLastRecords = records;
+  
   // Render charts
   renderDashboardCharts(records);
   
@@ -2124,25 +2144,36 @@ function renderDashboardCharts(records) {
   Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
   dashCharts = {};
   
-  // Chart 1: Distribution by plan (bar)
-  const planCounts = {};
+  // Chart 1: Bar chart by selected dimension
+  const dim = DIM_LABELS[dashChartDim] || DIM_LABELS.plan;
+  const counts = {};
   records.forEach(r => {
-    const name = r.plan_name || 'نامشخص';
-    planCounts[name] = (planCounts[name] || 0) + 1;
+    const name = r[dim.field] || dim.fallback;
+    counts[name] = (counts[name] || 0) + 1;
   });
-  const planLabels = Object.keys(planCounts);
-  const planData = Object.values(planCounts);
+  const labels = Object.keys(counts);
+  const data = Object.values(counts);
+  
+  // Update title
+  const titleEl = document.getElementById('chartBarTitle');
+  if (titleEl) titleEl.textContent = `توزیع ثبت ${dim.title}`;
   
   const ctx1 = document.getElementById('chartPlanDist');
-  if (ctx1 && planLabels.length) {
+  if (ctx1 && labels.length) {
+    // Use different colors for each bar
+    const colors = ['#3156a5', '#15803d', '#d59a19', '#8b94ac', '#b91c1c', '#1e7a8c', '#7c3aed', '#db2777'];
     dashCharts.planDist = new Chart(ctx1, {
       type: 'bar',
       data: {
-        labels: planLabels,
-        datasets: [{ label: 'تعداد ثبت', data: planData, backgroundColor: '#3156a5', borderRadius: 6 }]
+        labels: labels,
+        datasets: [{ label: 'تعداد ثبت', data: data, 
+          backgroundColor: labels.map((_, i) => colors[i % colors.length]),
+          borderRadius: 6 }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      options: { responsive: true, maintainAspectRatio: false, 
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
     });
   }
   
