@@ -1741,7 +1741,20 @@ async function renderPlanForms() {
   if (actions) actions.style.display = '';
   // Only show plan-specific fields for "done" (انجام‌شده) status
   if (State.selectedPlanStatus !== 'done') {
-    container.innerHTML = '<p class="hint" style="margin-top:12px">📝 برای وضعیت‌های «در حال انجام» و «دارای ظرفیت انجام»، ثبت فیلدهای اختصاصی الزامی نیست. اطلاعات طرح با همان انتخاب ثبت می‌شود.</p>';
+    const statusLabel = State.selectedPlanStatus === 'in_progress' ? 'در حال انجام' : 'دارای ظرفیت انجام';
+    container.innerHTML = `
+      <div class="plan-form-card" style="margin-top:12px">
+        <p class="hint" style="margin:0 0 12px">
+          📝 برای وضعیت «${statusLabel}»، ثبت فیلدهای اختصاصی الزامی نیست.
+          لطفاً در کادر زیر <b>توضیحات تکمیلی</b> مربوط به طرح را درج نمایید.
+        </p>
+        <div>
+          <label>توضیحات تکمیلی <span style="color:var(--blue)">(اجباری)</span></label>
+          <textarea id="planSupplementaryDesc" rows="4" required
+            placeholder="مثلاً: طرح در مرحله آماده‌سازی است و نیاز به تأمین اعتبار دارد..."></textarea>
+        </div>
+      </div>
+    `;
     return;
   }
   const forms = [];
@@ -1816,6 +1829,14 @@ async function submitPlanRecords() {
   if (!village) { toast('نام روستا الزامی است', 'error'); return; }
   if (!State.selectedPlans.size) { toast('حداقل یک طرح انتخاب کنید', 'error'); return; }
   const status = State.selectedPlanStatus;
+  // For non-done statuses, validate supplementary description
+  if (status !== 'done') {
+    const supDesc = document.getElementById('planSupplementaryDesc')?.value?.trim() || '';
+    if (!supDesc) {
+      toast('«توضیحات تکمیلی» برای این وضعیت اجباری است.', 'error');
+      return;
+    }
+  }
   let success = 0, errors = [];
   for (const pid of State.selectedPlans) {
     const fields = State.planFieldsCache[pid] || [];
@@ -1839,7 +1860,11 @@ async function submitPlanRecords() {
       continue;
     }
     try {
-      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId, district_id: document.getElementById('planDistrict')?.value || '', description: document.getElementById('planAddress')?.value || ''}});
+      const supDesc = document.getElementById('planSupplementaryDesc')?.value?.trim() || '';
+      const address = document.getElementById('planAddress')?.value?.trim() || '';
+      // For non-done statuses, use supplementary description; for done, use address
+      const desc = State.selectedPlanStatus === 'done' ? address : (supDesc || address);
+      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId, district_id: document.getElementById('planDistrict')?.value || '', description: desc}});
       if (r.ok) success++;
       else if (r.duplicate) errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error}`);
       else errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error||'خطا'}`);
