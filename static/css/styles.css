@@ -1241,3 +1241,35 @@ html[data-theme="dark"] .login-demo b { color: var(--ink); }
 html[data-theme="dark"] .modal-box {
   background: var(--bg-alt);
 }
+
+/* ===== FORM SECTION TITLES & GEO FIELDS ===== */
+.form-section-title {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--line);
+  font-size: 14px;
+  color: var(--navy);
+  font-weight: 700;
+}
+.form-section-title:first-child { margin-top: 0; }
+
+.grid.four { grid-template-columns: repeat(4, 1fr); }
+.geo-fields select, .geo-fields input {
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.geo-fields label { font-size: 12px; margin-bottom: 3px; }
+
+.address-field {
+  margin-top: 8px;
+}
+.address-field input {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .grid.four { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .grid.four { grid-template-columns: 1fr; }
+}
