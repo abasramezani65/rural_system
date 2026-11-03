@@ -157,15 +157,36 @@
     <!-- Dashboard Filters -->
     <div class="card">
       <div class="grid three">
-        <div><label>طرح</label><select id="dashPlanFilter"><option value="">همه طرح‌ها</option></select></div>
-        <div><label>وضعیت</label><select id="dashStatusFilter">
-          <option value="">همه وضعیت‌ها</option>
-          <option value="done">✅ انجام‌شده</option>
-          <option value="in_progress">🔄 در حال انجام</option>
-          <option value="capacity">📋 دارای ظرفیت</option>
-        </select></div>
-        <div><label>استان</label><select id="dashProvinceFilter"><option value="">همه استان‌ها</option></select></div>
-        <div><label>شهرستان</label><select id="dashCountyFilter"><option value="">همه شهرستان‌ها</option></select></div>
+        <div>
+          <label>طرح‌ها</label>
+          <div class="multi-select">
+            <button type="button" class="ms-btn" id="dashPlanMsBtn" onclick="toggleMs('dashPlanMs')">همه طرح‌ها ▾</button>
+            <div class="ms-panel" id="dashPlanMs"></div>
+          </div>
+        </div>
+        <div>
+          <label>وضعیت</label>
+          <select id="dashStatusFilter">
+            <option value="">همه وضعیت‌ها</option>
+            <option value="done">✅ انجام‌شده</option>
+            <option value="in_progress">🔄 در حال انجام</option>
+            <option value="capacity">📋 دارای ظرفیت</option>
+          </select>
+        </div>
+        <div>
+          <label>استان‌ها</label>
+          <div class="multi-select">
+            <button type="button" class="ms-btn" id="dashProvMsBtn" onclick="toggleMs('dashProvMs')">همه استان‌ها ▾</button>
+            <div class="ms-panel" id="dashProvMs"></div>
+          </div>
+        </div>
+        <div>
+          <label>شهرستان‌ها</label>
+          <div class="multi-select">
+            <button type="button" class="ms-btn" id="dashCountyMsBtn" onclick="toggleMs('dashCountyMs')">همه شهرستان‌ها ▾</button>
+            <div class="ms-panel" id="dashCountyMs"></div>
+          </div>
+        </div>
         <div><label>روستا</label><input id="dashVillageFilter" placeholder="نام روستا"></div>
         <div class="actions" style="align-items:end">
           <button id="applyDashFilter">اعمال فیلتر</button>
