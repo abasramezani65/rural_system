@@ -179,7 +179,7 @@ function bindLogin() {
     errEl.textContent = '';
     const btn = document.getElementById('loginSubmitButton');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="loader" style="border-color:rgba(255,255,255,.4);border-top-color:white"></span> در حال ورود...';
+    btn.innerHTML = '<span class="loader" style="border-color:rgba(255,255,255,.4);border-top-color:white"></span><span>در حال ورود...</span>';
     btn.disabled = true;
     try {
       const resp = await api('/api/login', { method: 'POST', body: { username, password } });
