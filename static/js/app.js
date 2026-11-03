@@ -2343,11 +2343,60 @@ function toJalali(dateStr) {
   }
 }
 
-// ===== RECORDS TAB (همه ثبت‌ها) =====
+// ===== RECORDS TAB (همه ثبت‌ها با فیلتر) =====
+function initRecordsFilters() {
+  // Populate plan filter
+  const planSel = document.getElementById('recPlanFilter');
+  if (planSel) {
+    planSel.innerHTML = '<option value="">همه طرح‌ها</option>' +
+      (State.plans||[]).filter(p => p.active).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  }
+  // Populate province filter
+  const provSel = document.getElementById('recProvinceFilter');
+  if (provSel) {
+    provSel.innerHTML = '<option value="">همه استان‌ها</option>' +
+      (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  }
+  // County cascading
+  if (provSel) provSel.onchange = () => {
+    const pid = provSel.value;
+    const csel = document.getElementById('recCountyFilter');
+    if (!csel) return;
+    const prov = State.provinces.find(p => p.id === pid);
+    csel.innerHTML = '<option value="">همه شهرستان‌ها</option>' +
+      (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+  };
+  // Buttons
+  const applyBtn = document.getElementById('applyRecFilter');
+  if (applyBtn) applyBtn.onclick = renderRecordsTab;
+  const clearBtn = document.getElementById('clearRecFilter');
+  if (clearBtn) clearBtn.onclick = () => {
+    document.getElementById('recPlanFilter').value = '';
+    document.getElementById('recStatusFilter').value = '';
+    document.getElementById('recProvinceFilter').value = '';
+    document.getElementById('recCountyFilter').innerHTML = '<option value="">همه شهرستان‌ها</option>';
+    document.getElementById('recVillageFilter').value = '';
+    renderRecordsTab();
+  };
+}
+
 async function renderRecordsTab() {
+  // Build filter params
+  const params = new URLSearchParams();
+  const planId = document.getElementById('recPlanFilter')?.value;
+  const status = document.getElementById('recStatusFilter')?.value;
+  const village = document.getElementById('recVillageFilter')?.value.trim();
+  const provinceId = document.getElementById('recProvinceFilter')?.value;
+  const countyId = document.getElementById('recCountyFilter')?.value;
+  if (planId) params.set('plan_id', planId);
+  if (status) params.set('status_category', status);
+  if (village) params.set('village', village);
+  if (provinceId) params.set('province_id', provinceId);
+  if (countyId) params.set('county_id', countyId);
+  
   let records = [];
   try {
-    records = await api('/api/plan-report');
+    records = await api(`/api/plan-report?${params}`);
   } catch(e) { console.error('Records tab error:', e); }
   
   const countEl = document.getElementById('recordCount');
@@ -2356,7 +2405,7 @@ async function renderRecordsTab() {
   const el = document.getElementById('recordsTable');
   if (!el) return;
   if (!records.length) {
-    el.innerHTML = '<div class="empty">هنوز ثبت‌ای انجام نشده است.</div>';
+    el.innerHTML = '<div class="empty">موردی یافت نشد.</div>';
     return;
   }
   el.innerHTML = `<table>
@@ -2381,8 +2430,9 @@ async function renderRecordsTab() {
   </table>`;
 }
 
-// Render records tab when tab is clicked
+// Initialize records tab filters and render on tab click
 document.addEventListener('DOMContentLoaded', () => {
+  initRecordsFilters();
   const recordsTab = document.querySelector('.tab[data-tab="records"]');
   if (recordsTab) {
     recordsTab.addEventListener('click', () => {
