@@ -1322,10 +1322,10 @@ html[data-theme="dark"] .modal-box {
   color: var(--ink);
 }
 .admin-menu-item.active {
-  background: var(--blue);
+  background: var(--green);
   color: white;
-  border-color: var(--navy);
-  box-shadow: 0 2px 8px rgba(59,89,152,.3);
+  border-color: #0d5a26;
+  box-shadow: 0 2px 8px rgba(21,128,61,.3);
 }
 .admin-content {
   flex: 1;
