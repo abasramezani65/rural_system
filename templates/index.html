@@ -243,8 +243,7 @@
     <div class="admin-layout">
       <!-- Sidebar Menu -->
       <div class="admin-sidebar">
-        <h3 class="admin-sidebar-title">پنل مدیریت</h3>
-        <button class="admin-menu-item active" data-admin-section="planManagementCard">🎯 طرح‌های پویا</button>
+        <button class="admin-menu-item active" data-admin-section="planManagementCard">🎯 تعریف طرح</button>
         <button class="admin-menu-item" data-admin-section="loginContentCard">🔔 اعلان‌های ورود</button>
         <button class="admin-menu-item" data-admin-section="accessManagementCard">👥 کاربران و دسترسی</button>
         <button class="admin-menu-item" data-admin-section="loginDesignCard">🎨 طراحی ورود</button>
@@ -256,7 +255,7 @@
       <div class="admin-content">
 
     <!-- Login announcements & banners management -->
-    <div class="card collapsible expanded admin-section" id="loginContentCard" style="display:none">
+    <div class="card collapsible expanded admin-section" id="loginContentCard">
       <div class="card-header"><h2>مدیریت اعلان‌ها و بنر صفحه ورود</h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <h3>پیام‌های مناسبتی و اعلان‌ها</h3>
@@ -286,8 +285,7 @@
     </div>
 
     <!-- PLAN MANAGEMENT (مدیریت طرح‌ها) -->
-    <div class="card collapsible expanded admin-section" id="planManagementCard">
-      <div class="card-header"><h2>🎯 مدیریت طرح‌های پویا</h2><span class="chevron">▼</span></div>
+    <div class="card collapsible expanded admin-section active-section" id="planManagementCard">
       <div class="card-body">
         <!-- Stats -->
         <div class="plan-stats-grid" id="planStatsGrid">
@@ -322,7 +320,7 @@
     </div>
 
     <!-- PLAN FIELDS MODAL (مدیریت فیلدهای طرح) -->
-    <div class="card collapsible expanded admin-section" id="planFieldsCard" style="display:none">
+    <div class="card collapsible expanded admin-section" id="planFieldsCard">
       <div class="card-header"><h2>مدیریت فیلدهای طرح: <span id="planFieldsTitle"></span></h2><span class="chevron">▼</span></div>
       <div class="card-body">
         <div class="grid three">
