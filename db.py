@@ -937,12 +937,17 @@ def _set_plan_statuses(pid, statuses):
 
 
 def delete_plan(pid):
-    """Soft-delete a plan by setting active=0. Hard delete only if no records."""
-    record_count = _fetchval('SELECT COUNT(*) FROM plan_records WHERE plan_id=?', (pid,))
-    if record_count == 0:
-        _exec('DELETE FROM plans WHERE id=?', (pid,))
-    else:
-        _exec('UPDATE plans SET active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', (pid,))
+    """Soft-delete a plan (deactivate). Records are kept but excluded from stats."""
+    _exec('UPDATE plans SET active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', (pid,))
+
+
+def hard_delete_plan(pid):
+    """Hard delete a plan and ALL its data (records, fields, history)."""
+    _exec('DELETE FROM plan_status_history WHERE plan_record_id IN (SELECT id FROM plan_records WHERE plan_id=?)', (pid,))
+    _exec('DELETE FROM plan_records WHERE plan_id=?', (pid,))
+    _exec('DELETE FROM plan_fields WHERE plan_id=?', (pid,))
+    _exec('DELETE FROM plan_status_allowed WHERE plan_id=?', (pid,))
+    _exec('DELETE FROM plans WHERE id=?', (pid,))
 
 
 # ----- Plan Fields CRUD -----
@@ -1129,14 +1134,16 @@ def get_status_history(rid):
 
 # ----- Plan Statistics -----
 def get_plan_stats():
-    """Get summary statistics for the admin dashboard."""
+    """Get summary statistics for the admin dashboard.
+    Only counts records from ACTIVE plans."""
     total_plans = _fetchval('SELECT COUNT(*) FROM plans') or 0
     active_plans = _fetchval('SELECT COUNT(*) FROM plans WHERE active=1') or 0
-    total_records = _fetchval('SELECT COUNT(*) FROM plan_records') or 0
-    done_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='done'") or 0
-    in_progress_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='in_progress'") or 0
-    capacity_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='capacity'") or 0
-    villages_count = _fetchval('SELECT COUNT(DISTINCT village) FROM plan_records') or 0
+    # Only count records from ACTIVE plans
+    total_records = _fetchval('SELECT COUNT(*) FROM plan_records WHERE plan_id IN (SELECT id FROM plans WHERE active=1)') or 0
+    done_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='done' AND plan_id IN (SELECT id FROM plans WHERE active=1)") or 0
+    in_progress_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='in_progress' AND plan_id IN (SELECT id FROM plans WHERE active=1)") or 0
+    capacity_count = _fetchval("SELECT COUNT(*) FROM plan_records WHERE status_category='capacity' AND plan_id IN (SELECT id FROM plans WHERE active=1)") or 0
+    villages_count = _fetchval('SELECT COUNT(DISTINCT village) FROM plan_records WHERE plan_id IN (SELECT id FROM plans WHERE active=1)') or 0
     return {
         'total_plans': total_plans,
         'active_plans': active_plans,
