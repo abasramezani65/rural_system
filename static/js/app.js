@@ -1406,11 +1406,59 @@ async function togglePlanActive(pid) {
   } catch(e) { toast(e.message, 'error'); }
 }
 
+// ----- Custom Delete Confirmation Modal -----
+function showDeleteModal(planName, recordCount, fieldCount) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('deleteModal');
+    const body = document.getElementById('deleteModalBody');
+    const title = document.getElementById('deleteModalTitle');
+    const confirmBtn = document.getElementById('deleteModalConfirm');
+    const cancelBtn = document.getElementById('deleteModalCancel');
+
+    title.textContent = `حذف طرح: ${planName}`;
+    body.innerHTML = `
+      <p>آیا از حذف کامل این طرح مطمئن هستید؟</p>
+      <div class="warn-detail">
+        <b>⚠️ هشدار:</b> این عملیات قابل بازگشت نیست!<br>
+        موارد زیر برای همیشه حذف خواهند شد:
+        <ul style="margin:8px 0 0;padding-right:20px">
+          <li>طرح: <b>${esc(planName)}</b></li>
+          <li>${fa(recordCount)} رکورد ثبت‌شده (سوابق روستاها)</li>
+          <li>${fa(fieldCount)} فیلد اختصاصی</li>
+          <li>تاریخچه تغییرات وضعیت</li>
+        </ul>
+      </div>
+      <p style="font-size:12px;color:var(--muted)">برای حذف کامل، دکمه «تأیید حذف کامل» را بزنید.</p>
+    `;
+
+    modal.style.display = 'flex';
+
+    const cleanup = (result) => {
+      modal.style.display = 'none';
+      confirmBtn.onclick = null;
+      cancelBtn.onclick = null;
+      resolve(result);
+    };
+
+    confirmBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    modal.onclick = (e) => { if (e.target === modal) cleanup(false); };
+  });
+}
+
 async function deletePlan(pid) {
-  if (!confirm('⚠️ این طرح و تمام سوابق آن برای همیشه حذف خواهد شد. ادامه؟')) return;
+  const plan = State.plans.find(p => p.id === pid);
+  if (!plan) return;
+  const planName = plan.name;
+  const recordCount = plan.record_count || 0;
+  const fieldCount = plan.field_count || 0;
+  
+  const confirmed = await showDeleteModal(planName, recordCount, fieldCount);
+  if (!confirmed) return;
+  
   try {
     const r = await api(`/api/plans/${pid}?hard=1`, {method:'DELETE'});
-    if (r.ok) { toast('طرح و سوابق آن حذف شد', 'success'); await loadState(); }
+    if (r.ok) { toast('طرح و تمام سوابق آن حذف شد', 'success'); await loadState(); }
   } catch(e) { toast(e.message, 'error'); }
 }
 
