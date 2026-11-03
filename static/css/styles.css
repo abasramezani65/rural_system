@@ -1345,3 +1345,50 @@ html[data-theme="dark"] .modal-box {
   .admin-sidebar-title { margin-bottom: 8px; }
   .admin-menu-item { display: inline-block; width: auto; margin: 0 4px 4px 0; }
 }
+
+/* ===== MULTI-SELECT ===== */
+.multi-select { position: relative; }
+.ms-btn {
+  width: 100%;
+  text-align: right;
+  padding: 8px 12px;
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ms-btn:hover { border-color: var(--blue); }
+.ms-panel {
+  display: none;
+  position: absolute;
+  z-index: 100;
+  top: 100%;
+  right: 0;
+  left: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  margin-top: 2px;
+}
+.ms-panel.open { display: block; }
+.ms-panel label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ms-panel label:hover { background: var(--bg-alt); }
+.ms-panel input { width: auto; margin: 0; }
