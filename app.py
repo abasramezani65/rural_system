@@ -332,8 +332,15 @@ def api_province_add():
     name = (data.get('name') or '').strip()
     if not name:
         return jsonify({'error': 'نام استان الزامی است.'}), 400
-    pid = DB.add_province(name)
-    return jsonify({'ok': True, 'id': pid})
+    # Check for duplicate
+    existing = DB._fetchone('SELECT id FROM provinces WHERE name=?', (name,))
+    if existing:
+        return jsonify({'error': 'استان با این نام قبلاً ثبت شده است.'}), 400
+    try:
+        pid = DB.add_province(name)
+        return jsonify({'ok': True, 'id': pid})
+    except Exception as e:
+        return jsonify({'error': f'خطا در ثبت: {e}'}), 500
 
 
 @app.route('/api/provinces/<pid>', methods=['DELETE'])
@@ -355,8 +362,15 @@ def api_county_add():
     name = (data.get('name') or '').strip()
     if not province_id or not name:
         return jsonify({'error': 'استان و نام شهرستان الزامی است.'}), 400
-    cid = DB.add_county(province_id, name)
-    return jsonify({'ok': True, 'id': cid})
+    # Check for duplicate within same province
+    existing = DB._fetchone('SELECT id FROM counties WHERE province_id=? AND name=?', (province_id, name))
+    if existing:
+        return jsonify({'error': 'این شهرستان قبلاً برای این استان ثبت شده است.'}), 400
+    try:
+        cid = DB.add_county(province_id, name)
+        return jsonify({'ok': True, 'id': cid})
+    except Exception as e:
+        return jsonify({'error': f'خطا در ثبت: {e}'}), 500
 
 
 @app.route('/api/counties/<cid>', methods=['DELETE'])
