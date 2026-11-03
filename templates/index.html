@@ -115,17 +115,22 @@
 
     <!-- PLAN-BASED REGISTRATION (ثبت طرح‌محور) -->
     <div class="card" id="planRegCard">
-      <h2>ثبت طرح‌محور خدمات روستایی</h2>
-      <p class="hint">طرح‌ها را بر اساس وضعیت انتخاب کنید و اطلاعات اختصاصی هر طرح را وارد نمایید.</p>
 
-      <!-- Location selection (shared with plan registration) -->
-      <div class="grid three" style="margin-bottom:12px">
+      <!-- Geographic Location -->
+      <h4 class="form-section-title">📍 موقعیت جغرافیایی</h4>
+      <div class="grid four geo-fields">
         <div><label>استان</label><select id="planProvince" required></select></div>
         <div><label>شهرستان</label><select id="planCounty" required></select></div>
+        <div><label>دهستان</label><select id="planDistrict"><option value="">انتخاب دهستان</option></select></div>
         <div><label>روستا</label><input id="planVillage" required placeholder="نام روستا"></div>
       </div>
+      <div class="address-field">
+        <label>آدرس</label>
+        <input id="planAddress" placeholder="آدرس کامل محل اجرای طرح">
+      </div>
 
-      <!-- Status tabs -->
+      <!-- Status -->
+      <h4 class="form-section-title">📊 وضعیت</h4>
       <div class="plan-status-tabs">
         <button type="button" class="plan-tab active" data-status="done">✅ انجام‌شده</button>
         <button type="button" class="plan-tab" data-status="in_progress">🔄 در حال انجام</button>
