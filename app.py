@@ -894,14 +894,38 @@ def api_plan_report():
     elif user['role'] == 'county':
         filters['county_id'] = user.get('county_id') or ''
     records = DB.list_plan_records(filters if filters else None)
-    # Enrich with plan name and field labels
+    # Enrich with plan name, province name, county name, status label
     plan_cache = {}
+    prov_cache = {}
+    county_cache = {}
+    provinces_list = DB.list_provinces()
     for r in records:
         pid = r.get('plan_id')
         if pid not in plan_cache:
             plan_cache[pid] = DB.get_plan(pid)
         p = plan_cache.get(pid) or {}
         r['plan_name'] = p.get('name', '')
+        # Province name
+        prov_id = r.get('province_id')
+        if prov_id:
+            if prov_id not in prov_cache:
+                prov = next((p2 for p2 in provinces_list if p2['id'] == prov_id), None)
+                prov_cache[prov_id] = prov.get('name', '') if prov else ''
+            r['province_name'] = prov_cache.get(prov_id, '')
+        else:
+            r['province_name'] = ''
+        # County name
+        cty_id = r.get('county_id')
+        if cty_id:
+            if cty_id not in county_cache:
+                for p2 in provinces_list:
+                    for c in (p2.get('counties') or []):
+                        if c['id'] == cty_id:
+                            county_cache[cty_id] = c.get('name', '')
+                            break
+            r['county_name'] = county_cache.get(cty_id, '')
+        else:
+            r['county_name'] = ''
         r['status_label'] = STATUS_LABELS.get(r.get('status_category'), r.get('status_category', ''))
     # CSV export
     if request.args.get('format') == 'csv':
