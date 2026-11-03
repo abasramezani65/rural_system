@@ -498,9 +498,12 @@ async function deleteRecord(id) {
 // ----- Summary & charts -----
 function getFilteredGroups() {
   const checkedSvc = Array.from(document.querySelectorAll('#filterServices input:checked')).map(c => c.value);
-  const fp = document.getElementById('filterProvince').value;
-  const fc = document.getElementById('filterCounty').value;
-  const mode = document.getElementById('filterMode').value;
+  const fpEl = document.getElementById('filterProvince');
+  const fcEl = document.getElementById('filterCounty');
+  const modeEl = document.getElementById('filterMode');
+  const fp = fpEl ? fpEl.value : '';
+  const fc = fcEl ? fcEl.value : '';
+  const mode = modeEl ? modeEl.value : 'all';
   let recs = scopedRecords();
   if (fp) recs = recs.filter(r => r.province_id === fp);
   if (fc) recs = recs.filter(r => r.county_id === fc);
@@ -1276,18 +1279,18 @@ async function init() {
     } catch (e) { toast(e.message, 'error'); }
   });
 
-  // Filters
-  document.getElementById('applyFilter').addEventListener('click', renderSummary);
-  document.getElementById('clearFilter').addEventListener('click', () => {
+  // Filters (old summary — null checks since elements removed)
+  document.getElementById('applyFilter')?.addEventListener('click', renderSummary);
+  document.getElementById('clearFilter')?.addEventListener('click', () => {
     document.querySelectorAll('#filterServices input').forEach(c => c.checked = false);
-    document.getElementById('filterProvince').value = '';
+    const fp = document.getElementById('filterProvince'); if (fp) fp.value = '';
     renderFilterSelects();
-    document.getElementById('filterMode').value = 'all';
+    const fm = document.getElementById('filterMode'); if (fm) fm.value = 'all';
     renderSummary();
   });
 
-  // Export
-  document.getElementById('exportFiltered').addEventListener('click', () => {
+  // Export (old — null check)
+  document.getElementById('exportFiltered')?.addEventListener('click', () => {
     const groups = getFilteredGroups();
     const csv = '\ufeffکارشناس,سمت,استان,شهرستان,روستا,خدمت,تاریخ,بهرهمندان\n' +
       groups.flatMap(g => g.records).map(r => [
