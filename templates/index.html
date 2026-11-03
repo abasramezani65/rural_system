@@ -250,6 +250,24 @@
   <!-- RECORDS -->
   <section id="records" class="panel">
     <div class="card">
+      <div class="grid three" style="margin-bottom:12px">
+        <div><label>طرح</label><select id="recPlanFilter"><option value="">همه طرح‌ها</option></select></div>
+        <div><label>وضعیت</label><select id="recStatusFilter">
+          <option value="">همه وضعیت‌ها</option>
+          <option value="done">✅ انجام‌شده</option>
+          <option value="in_progress">🔄 در حال انجام</option>
+          <option value="capacity">📋 دارای ظرفیت</option>
+        </select></div>
+        <div><label>استان</label><select id="recProvinceFilter"><option value="">همه استان‌ها</option></select></div>
+        <div><label>شهرستان</label><select id="recCountyFilter"><option value="">همه شهرستان‌ها</option></select></div>
+        <div><label>روستا</label><input id="recVillageFilter" placeholder="نام روستا"></div>
+        <div class="actions" style="align-items:end">
+          <button id="applyRecFilter">اعمال فیلتر</button>
+          <button class="secondary" id="clearRecFilter">حذف فیلتر</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <div class="actions" style="justify-content:space-between;margin-top:0">
         <h2 style="margin:0">📋 سوابق ثبت طرح‌ها</h2>
         <span id="recordCount" class="badge">۰ رکورد</span>
