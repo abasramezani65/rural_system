@@ -1634,10 +1634,12 @@ function renderPlanRegistration() {
       renderPlanForms();
     };
   });
-  // County change
+  // County change → update districts
   const countySel = document.getElementById('planCounty');
   if (provSel) provSel.onchange = () => { updatePlanCounties(); renderPlanList(); };
-  if (countySel) countySel.onchange = renderPlanList;
+  if (countySel) countySel.onchange = () => { updatePlanDistricts(); renderPlanList(); };
+  const districtSel = document.getElementById('planDistrict');
+  if (districtSel) districtSel.onchange = renderPlanList;
   const villageInput = document.getElementById('planVillage');
   if (villageInput) villageInput.oninput = renderPlanList;
   // Submit
@@ -1655,6 +1657,28 @@ function updatePlanCounties() {
   const prov = State.provinces.find(p => p.id === provId);
   countySel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
     (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+  // Reset district when province changes
+  const distSel = document.getElementById('planDistrict');
+  if (distSel) distSel.innerHTML = '<option value="">انتخاب دهستان</option>';
+}
+
+function updatePlanDistricts() {
+  const countyId = document.getElementById('planCounty').value;
+  const distSel = document.getElementById('planDistrict');
+  if (!distSel) return;
+  // Districts are stored in geoCatalog or can be fetched
+  // For now, use provinces → counties → districts if available
+  let districts = [];
+  for (const p of State.provinces) {
+    for (const c of (p.counties || [])) {
+      if (c.id === countyId && c.districts) {
+        districts = c.districts;
+        break;
+      }
+    }
+  }
+  distSel.innerHTML = '<option value="">انتخاب دهستان</option>' +
+    districts.map(d => `<option value="${d.id || esc(d.name)}">${esc(d.name)}</option>`).join('');
 }
 
 function renderPlanList() {
@@ -1810,7 +1834,7 @@ async function submitPlanRecords() {
       continue;
     }
     try {
-      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId}});
+      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId, district_id: document.getElementById('planDistrict')?.value || '', description: document.getElementById('planAddress')?.value || ''}});
       if (r.ok) success++;
       else if (r.duplicate) errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error}`);
       else errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error||'خطا'}`);
