@@ -1005,24 +1005,33 @@ def delete_plan_field(fid):
 
 # ----- Plan Records -----
 def list_plan_records(filters=None):
-    """List plan records with optional filters."""
+    """List plan records with optional filters. Supports comma-separated multi-values."""
     sql = ('SELECT pr.*, p.name as plan_name FROM plan_records pr '
            'LEFT JOIN plans p ON p.id=pr.plan_id WHERE 1=1')
     conditions = []
     params = []
     if filters:
         if filters.get('plan_id'):
-            conditions.append('pr.plan_id=?')
-            params.append(filters['plan_id'])
+            ids = [v.strip() for v in filters['plan_id'].split(',') if v.strip()]
+            if ids:
+                placeholders = ','.join(['?' for _ in ids])
+                conditions.append(f'pr.plan_id IN ({placeholders})')
+                params.extend(ids)
         if filters.get('village'):
             conditions.append('pr.village LIKE ?')
             params.append(f'%{filters["village"]}%')
         if filters.get('province_id'):
-            conditions.append('pr.province_id=?')
-            params.append(filters['province_id'])
+            ids = [v.strip() for v in filters['province_id'].split(',') if v.strip()]
+            if ids:
+                placeholders = ','.join(['?' for _ in ids])
+                conditions.append(f'pr.province_id IN ({placeholders})')
+                params.extend(ids)
         if filters.get('county_id'):
-            conditions.append('pr.county_id=?')
-            params.append(filters['county_id'])
+            ids = [v.strip() for v in filters['county_id'].split(',') if v.strip()]
+            if ids:
+                placeholders = ','.join(['?' for _ in ids])
+                conditions.append(f'pr.county_id IN ({placeholders})')
+                params.extend(ids)
         if filters.get('status_category'):
             conditions.append('pr.status_category=?')
             params.append(filters['status_category'])
