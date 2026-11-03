@@ -1962,7 +1962,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   });
-  // Show first section by default (plan management)
-  const firstSection = document.querySelector('.admin-section');
-  if (firstSection) firstSection.classList.add('active-section');
+  // Sync initial visible section with active menu item
+  const activeMenu = document.querySelector('.admin-menu-item.active');
+  if (activeMenu) {
+    const targetId = activeMenu.dataset.adminSection;
+    document.querySelectorAll('.admin-section').forEach(sec => {
+      sec.classList.toggle('active-section', sec.id === targetId);
+    });
+  }
 });
