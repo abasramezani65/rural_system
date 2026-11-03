@@ -986,10 +986,13 @@ async function init() {
   }
 
   // Bind events
-  document.getElementById('province').addEventListener('change', fillCountySelect);
-  document.getElementById('filterProvince').addEventListener('change', renderFilterSelects);
+  document.getElementById('province')?.addEventListener('change', fillCountySelect);
+  document.getElementById('filterProvince')?.addEventListener('change', renderFilterSelects);
 
-  document.getElementById('recordForm').addEventListener('submit', async (e) => {
+  // Old record form (removed — wrapped in null check for safety)
+  const recordForm = document.getElementById('recordForm');
+  if (recordForm) {
+  recordForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const province = State.provinces.find(p => p.id === document.getElementById('province').value);
     const county = province?.counties.find(c => c.id === document.getElementById('county').value);
@@ -1059,8 +1062,9 @@ async function init() {
       btn.disabled = false;
     }
   });
+  } // end if recordForm
 
-  document.getElementById('resetFormBtn').addEventListener('click', resetForm);
+  document.getElementById('resetFormBtn')?.addEventListener('click', resetForm);
 
   // Tabs
   document.querySelectorAll('.tab').forEach(t => {
