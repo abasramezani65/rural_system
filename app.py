@@ -679,7 +679,11 @@ def api_plan_delete(pid):
     user = require_auth()
     if not user or user['role'] != 'national':
         return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
-    DB.delete_plan(pid)
+    hard = request.args.get('hard') == '1'
+    if hard:
+        DB.hard_delete_plan(pid)
+    else:
+        DB.delete_plan(pid)
     return jsonify({'ok': True})
 
 
