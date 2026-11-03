@@ -2425,7 +2425,7 @@ async function renderRecordsTab() {
         <td>${r.service_date ? toJalali(r.service_date) : '—'}</td>
         <td>${esc((r.description || '').substring(0, 40))}${(r.description||'').length > 40 ? '...' : ''}</td>
         <td>${toJalali(r.created_at)}</td>
-        <td>${State.user?.role === 'national' ? `<button class="small danger" onclick="deleteRec('${r.id}', '${esc(r.plan_name||'')}', '${esc(r.village)}')">🗑 حذف</button>` : '—'}</td>
+        <td><button class="small danger" onclick="deleteRec('${r.id}', '${esc(r.plan_name||'')}', '${esc(r.village)}')">🗑 حذف</button></td>
       </tr>`).join('')}
     </tbody>
   </table>`;
