@@ -1785,10 +1785,10 @@ function renderFieldInput(f, pid) {
       input = `<textarea id="${key}"${req} placeholder="${esc(f.label)}"></textarea>`;
       break;
     case 'number':
-      input = `<input id="${key}" type="number"${req} placeholder="۰">`;
+      input = `<input id="${key}" type="text" inputmode="numeric" class="num-separator"${req} placeholder="۰">`;
       break;
     case 'money':
-      input = `<input id="${key}" type="number"${req} placeholder="مبلغ به تومان">`;
+      input = `<input id="${key}" type="text" inputmode="numeric" class="num-separator"${req} placeholder="مبلغ به تومان">`;
       break;
     case 'date':
       input = `<input id="${key}" type="text"${req} placeholder="مثلاً ۱۴۰۵/۰۷/۲۰">`;
@@ -1838,7 +1838,13 @@ async function submitPlanRecords() {
       } else if (f.type === 'checkbox') {
         values[f.field_key] = document.getElementById(key)?.checked ? 1 : 0;
       } else {
-        values[f.field_key] = document.getElementById(key)?.value?.trim() || '';
+        let val = document.getElementById(key)?.value?.trim() || '';
+        // Parse number/money: remove separators and convert to number
+        if (f.type === 'number' || f.type === 'money') {
+          val = val.replace(/[^\d]/g, ''); // Remove everything except digits
+          val = val ? Number(val) : '';
+        }
+        values[f.field_key] = val;
       }
       if (f.required && !values[f.field_key]) {
         fieldErrors.push(`«${f.label}»`);
@@ -2296,4 +2302,28 @@ async function exportDashboardExcel() {
 // Init dashboard on page load
 document.addEventListener('DOMContentLoaded', () => {
   initDashboard();
+});
+
+// ===== NUMBER SEPARATOR (جداکننده هزارگان) =====
+function formatNumSeparator(input) {
+  // Get cursor position
+  const cursorPos = input.selectionStart;
+  const oldLen = input.value.length;
+  // Remove non-digits
+  let digits = input.value.replace(/[^\d]/g, '');
+  if (!digits) { input.value = ''; return; }
+  // Format with thousand separators (Persian)
+  const formatted = Number(digits).toLocaleString('fa-IR');
+  input.value = formatted;
+  // Adjust cursor position
+  const newLen = formatted.length;
+  const diff = newLen - oldLen;
+  input.setSelectionRange(cursorPos + diff, cursorPos + diff);
+}
+
+// Apply to all .num-separator inputs (delegated event)
+document.addEventListener('input', (e) => {
+  if (e.target.classList && e.target.classList.contains('num-separator')) {
+    formatNumSeparator(e.target);
+  }
 });
