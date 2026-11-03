@@ -775,13 +775,14 @@ def api_plan_record_add():
     status_category = data.get('status_category')
     if not plan_id or not village or not status_category:
         return jsonify({'error': 'طرح، روستا و وضعیت الزامی است.'}), 400
-    # Server-side required field validation
+    # Server-side required field validation (only for 'done' status)
     fields = DB.list_plan_fields(plan_id)
     values = data.get('field_values') or {}
     errors = []
-    for f in fields:
-        if f['required'] and not values.get(f['field_key']):
-            errors.append(f"فیلد «{f['label']}» اجباری است.")
+    if status_category == 'done':
+        for f in fields:
+            if f['required'] and not values.get(f['field_key']):
+                errors.append(f"فیلد «{f['label']}» اجباری است.")
     if errors:
         return jsonify({'error': ' | '.join(errors)}), 400
     # Scope check
