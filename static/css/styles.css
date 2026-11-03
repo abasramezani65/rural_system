@@ -1392,3 +1392,22 @@ html[data-theme="dark"] .modal-box {
 }
 .ms-panel label:hover { background: var(--bg-alt); }
 .ms-panel input { width: auto; margin: 0; }
+
+/* Chart dimension buttons */
+.chart-dim-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  background: var(--bg-alt);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all .15s;
+}
+.chart-dim-btn:hover { background: var(--line-soft); }
+.chart-dim-btn.active {
+  background: var(--green);
+  color: white;
+  border-color: #0d5a26;
+}
