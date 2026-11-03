@@ -1166,3 +1166,78 @@ html[data-theme="dark"] .login-demo b { color: var(--ink); }
   .plan-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .plan-form-card .grid { grid-template-columns: 1fr; }
 }
+
+/* ===== DELETE MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: modalFadeIn .2s ease;
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal-box {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  max-width: 460px;
+  width: 90%;
+  box-shadow: 0 24px 60px rgba(0,0,0,.3);
+  text-align: center;
+  animation: modalSlideIn .25s cubic-bezier(.22,1,.36,1);
+}
+@keyframes modalSlideIn {
+  from { transform: translateY(20px) scale(.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.modal-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+.modal-box h3 {
+  margin: 0 0 12px;
+  color: var(--red);
+  font-size: 18px;
+}
+.modal-body {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.8;
+  margin-bottom: 20px;
+}
+.modal-body .warn-detail {
+  background: var(--red-bg);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-size: 13px;
+  text-align: right;
+}
+.modal-body .warn-detail b { color: var(--red); }
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.modal-actions button {
+  padding: 10px 24px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  min-width: 120px;
+}
+.modal-actions .danger {
+  background: var(--red);
+  color: white;
+}
+.modal-actions .danger:hover {
+  background: #991c1c;
+}
+html[data-theme="dark"] .modal-box {
+  background: var(--bg-alt);
+}
