@@ -1941,8 +1941,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (applyBtn) applyBtn.onclick = applyPlanReport;
   const exportBtn = document.getElementById('exportPlanReport');
   if (exportBtn) exportBtn.onclick = exportPlanReportCSV;
-  // Collapsible cards
-  document.querySelectorAll('.card.collapsible .card-header').forEach(h => {
+  // Collapsible cards (exclude admin sections — they use sidebar)
+  document.querySelectorAll('.card.collapsible:not(.admin-section) .card-header').forEach(h => {
     h.onclick = () => h.parentElement.classList.toggle('expanded');
   });
 });
