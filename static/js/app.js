@@ -24,6 +24,7 @@ const State = {
   selectedPlanStatus: 'done',
   selectedPlans: new Set(),
   editingPlanId: null,
+  editingFieldId: null,
   editingUserId: null,
   editingRecordId: null,
   charts: {},
@@ -1406,9 +1407,11 @@ async function togglePlanActive(pid) {
 }
 
 async function deletePlan(pid) {
-  if (!confirm('آیا از حذف/غیرفعال‌سازی این طرح مطمئن هستید؟ سوابق قبلی حفظ خواهند شد.')) return;
-  const r = await api(`/api/plans/${pid}`, {method:'DELETE'});
-  if (r.ok) { toast('طرح حذف/غیرفعال شد', 'success'); await loadState(); }
+  if (!confirm('⚠️ این طرح و تمام سوابق آن برای همیشه حذف خواهد شد. ادامه؟')) return;
+  try {
+    const r = await api(`/api/plans/${pid}?hard=1`, {method:'DELETE'});
+    if (r.ok) { toast('طرح و سوابق آن حذف شد', 'success'); await loadState(); }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 function editPlan(pid) {
@@ -1493,16 +1496,34 @@ async function addPlanField() {
     options = optionsRaw.split(/[،,]/).map(s=>s.trim()).filter(Boolean);
   }
   try {
-    const r = await api(`/api/plans/${pid}/fields`, {method:'POST', body: {label, type, required, options, help_text: help}});
-    if (r.ok) {
-      toast('فیلد اضافه شد', 'success');
-      document.getElementById('newFieldLabel').value='';
-      document.getElementById('newFieldOptions').value='';
-      document.getElementById('newFieldHelp').value='';
-      document.getElementById('newFieldRequired').checked=false;
-      await renderPlanFields(pid);
-    } else { toast(r.error||'خطا', 'error'); }
+    if (State.editingFieldId) {
+      // EDIT mode — update existing field
+      const r = await api(`/api/plan-fields/${State.editingFieldId}`, {method:'POST', body: {label, type, required, options, help_text: help}});
+      if (r.ok) {
+        toast('فیلد به‌روزرسانی شد', 'success');
+        State.editingFieldId = null;
+        resetFieldForm();
+        await renderPlanFields(pid);
+      } else { toast(r.error||'خطا', 'error'); }
+    } else {
+      // ADD mode — create new field
+      const r = await api(`/api/plans/${pid}/fields`, {method:'POST', body: {label, type, required, options, help_text: help}});
+      if (r.ok) {
+        toast('فیلد اضافه شد', 'success');
+        resetFieldForm();
+        await renderPlanFields(pid);
+      } else { toast(r.error||'خطا', 'error'); }
+    }
   } catch(e) { toast(e.message, 'error'); }
+}
+
+function resetFieldForm() {
+  document.getElementById('newFieldLabel').value = '';
+  document.getElementById('newFieldOptions').value = '';
+  document.getElementById('newFieldHelp').value = '';
+  document.getElementById('newFieldRequired').checked = false;
+  const btn = document.getElementById('addFieldBtn');
+  if (btn) { btn.textContent = 'افزودن فیلد'; btn.style.background = ''; }
 }
 
 async function deletePlanField(fid) {
@@ -1519,12 +1540,20 @@ function editPlanField(fid) {
   const fields = State.planFieldsCache[pid] || [];
   const f = fields.find(x => x.id === fid);
   if (!f) return;
+  State.editingFieldId = fid;
   document.getElementById('newFieldLabel').value = f.label;
   document.getElementById('newFieldType').value = f.type;
-  document.getElementById('newFieldOptions').value = f.options || '';
+  // Parse options for display
+  let opts = f.options;
+  if (typeof opts === 'string') { try { opts = JSON.parse(opts); } catch(e) { opts = opts.split(/[،,]/); } }
+  if (!Array.isArray(opts)) opts = [];
+  document.getElementById('newFieldOptions').value = opts.join('، ');
   document.getElementById('newFieldHelp').value = f.help_text || '';
   document.getElementById('newFieldRequired').checked = !!f.required;
-  toast('ویرایش فیلد — تغییرات را بدهید و «افزودن فیلد» را بزنید (در حال حاضر افزودن جدید می‌سازد)', 'info');
+  // Change button text to "ویرایش فیلد"
+  const btn = document.getElementById('addFieldBtn');
+  if (btn) { btn.textContent = '✏ ویرایش فیلد'; btn.style.background = 'var(--gold)'; }
+  toast('حالت ویرایش فیلد فعال شد. تغییرات را اعمال و «ویرایش فیلد» را بزنید', 'info');
 }
 
 function backToPlans() {
