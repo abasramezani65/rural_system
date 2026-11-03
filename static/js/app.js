@@ -1471,10 +1471,11 @@ async function addPlanOrUpdate() {
 async function managePlanFields(pid) {
   const plan = State.plans.find(p => p.id === pid);
   if (!plan) return;
-  document.getElementById('planManagementCard').style.display = 'none';
-  const card = document.getElementById('planFieldsCard');
-  card.style.display = '';
-  card.classList.add('expanded');
+  // Switch to fields section
+  document.querySelectorAll('.admin-section').forEach(sec => {
+    sec.classList.toggle('active-section', sec.id === 'planFieldsCard');
+  });
+  document.querySelectorAll('.admin-menu-item').forEach(m => m.classList.remove('active'));
   document.getElementById('planFieldsTitle').textContent = plan.name;
   State.editingPlanId = pid;
   await renderPlanFields(pid);
@@ -1581,8 +1582,12 @@ function editPlanField(fid) {
 }
 
 function backToPlans() {
-  document.getElementById('planFieldsCard').style.display = 'none';
-  document.getElementById('planManagementCard').style.display = '';
+  // Switch back to plan management section
+  document.querySelectorAll('.admin-section').forEach(sec => {
+    sec.classList.toggle('active-section', sec.id === 'planManagementCard');
+  });
+  const planMenu = document.querySelector('.admin-menu-item[data-admin-section="planManagementCard"]');
+  if (planMenu) planMenu.classList.add('active');
   State.editingPlanId = null;
 }
 
@@ -1940,4 +1945,24 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.card.collapsible .card-header').forEach(h => {
     h.onclick = () => h.parentElement.classList.toggle('expanded');
   });
+});
+
+// ===== ADMIN SIDEBAR SWITCHING =====
+document.addEventListener('DOMContentLoaded', () => {
+  const menuItems = document.querySelectorAll('.admin-menu-item');
+  menuItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const targetId = item.dataset.adminSection;
+      // Update active menu
+      menuItems.forEach(m => m.classList.remove('active'));
+      item.classList.add('active');
+      // Show target section, hide others
+      document.querySelectorAll('.admin-section').forEach(sec => {
+        sec.classList.toggle('active-section', sec.id === targetId);
+      });
+    });
+  });
+  // Show first section by default (plan management)
+  const firstSection = document.querySelector('.admin-section');
+  if (firstSection) firstSection.classList.add('active-section');
 });
