@@ -2212,7 +2212,7 @@ function renderDashboardTable(records) {
   }
   el.innerHTML = `<table>
     <thead><tr>
-      <th>طرح</th><th>روستا</th><th>وضعیت</th><th>کارشناس</th><th>تاریخ</th><th>توضیحات</th><th>تاریخ ثبت</th>
+      <th>طرح</th><th>روستا</th><th>وضعیت</th><th>کارشناس</th><th>تاریخ اجرا</th><th>توضیحات</th><th>تاریخ ثبت</th>
     </tr></thead>
     <tbody>
       ${records.map(r => `<tr>
@@ -2220,9 +2220,9 @@ function renderDashboardTable(records) {
         <td>${esc(r.village)}</td>
         <td>${STATUS_ICONS[r.status_category] || ''} ${STATUS_LABELS[r.status_category] || r.status_category}</td>
         <td>${esc(r.expert_name || '')}</td>
-        <td>${esc(r.service_date || '')}</td>
+        <td>${r.service_date ? toJalali(r.service_date) : '—'}</td>
         <td>${esc((r.description || '').substring(0, 50))}${(r.description||'').length > 50 ? '...' : ''}</td>
-        <td>${esc((r.created_at || '').slice(0, 10))}</td>
+        <td>${toJalali(r.created_at)}</td>
       </tr>`).join('')}
     </tbody>
   </table>`;
@@ -2276,9 +2276,9 @@ async function exportDashboardExcel() {
     STATUS_LABELS[r.status_category] || r.status_category || '',
     r.expert_name || '',
     r.org || '',
-    r.service_date || '',
+    r.service_date ? toJalali(r.service_date) : '',
     r.description || '',
-    (r.created_at || '').slice(0, 10),
+    toJalali(r.created_at),
   ]);
   
   // Create worksheet
@@ -2325,5 +2325,68 @@ function formatNumSeparator(input) {
 document.addEventListener('input', (e) => {
   if (e.target.classList && e.target.classList.contains('num-separator')) {
     formatNumSeparator(e.target);
+  }
+});
+
+// ===== JALALI (PERSIAN) DATE CONVERTER =====
+function toJalali(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr.slice(0, 10);
+    // Use Intl with Persian calendar
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(d).replace(/\//g, '/');
+  } catch(e) {
+    return dateStr.slice(0, 10);
+  }
+}
+
+// ===== RECORDS TAB (همه ثبت‌ها) =====
+async function renderRecordsTab() {
+  let records = [];
+  try {
+    records = await api('/api/plan-report');
+  } catch(e) { console.error('Records tab error:', e); }
+  
+  const countEl = document.getElementById('recordCount');
+  if (countEl) countEl.textContent = fa(records.length) + ' رکورد';
+  
+  const el = document.getElementById('recordsTable');
+  if (!el) return;
+  if (!records.length) {
+    el.innerHTML = '<div class="empty">هنوز ثبت‌ای انجام نشده است.</div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr>
+      <th>ردیف</th><th>طرح</th><th>روستا</th><th>استان</th><th>شهرستان</th>
+      <th>وضعیت</th><th>کارشناس</th><th>تاریخ اجرا</th><th>توضیحات</th><th>تاریخ ثبت</th>
+    </tr></thead>
+    <tbody>
+      ${records.map((r, i) => `<tr>
+        <td>${fa(i + 1)}</td>
+        <td>${esc(r.plan_name || '')}</td>
+        <td>${esc(r.village)}</td>
+        <td>${esc(r.province_name || '')}</td>
+        <td>${esc(r.county_name || '')}</td>
+        <td>${STATUS_ICONS[r.status_category] || ''} ${STATUS_LABELS[r.status_category] || r.status_category}</td>
+        <td>${esc(r.expert_name || '')}</td>
+        <td>${r.service_date ? toJalali(r.service_date) : '—'}</td>
+        <td>${esc((r.description || '').substring(0, 40))}${(r.description||'').length > 40 ? '...' : ''}</td>
+        <td>${toJalali(r.created_at)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// Render records tab when tab is clicked
+document.addEventListener('DOMContentLoaded', () => {
+  const recordsTab = document.querySelector('.tab[data-tab="records"]');
+  if (recordsTab) {
+    recordsTab.addEventListener('click', () => {
+      setTimeout(renderRecordsTab, 100);
+    });
   }
 });
