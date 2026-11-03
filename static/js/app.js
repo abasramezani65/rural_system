@@ -1984,37 +1984,31 @@ document.addEventListener('DOMContentLoaded', () => {
 let dashCharts = {};
 
 function initDashboard() {
-  // Populate plan filter
-  const planSel = document.getElementById('dashPlanFilter');
-  if (planSel) {
-    planSel.innerHTML = '<option value="">همه طرح‌ها</option>' +
-      (State.plans||[]).filter(p => p.active).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  // Populate plan multi-select
+  const planPanel = document.getElementById('dashPlanMs');
+  if (planPanel) {
+    planPanel.innerHTML = (State.plans||[]).filter(p => p.active).map(p =>
+      `<label><input type="checkbox" value="${p.id}" onchange="updateMsBtn('dashPlanMs','dashPlanMsBtn','طرح')"> ${esc(p.name)}</label>`
+    ).join('');
   }
-  // Populate province filter
-  const provSel = document.getElementById('dashProvinceFilter');
-  if (provSel) {
-    provSel.innerHTML = '<option value="">همه استان‌ها</option>' +
-      (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  // Populate province multi-select
+  const provPanel = document.getElementById('dashProvMs');
+  if (provPanel) {
+    provPanel.innerHTML = (State.provinces||[]).map(p =>
+      `<label><input type="checkbox" value="${p.id}" onchange="updateMsBtn('dashProvMs','dashProvMsBtn','استان'); updateDashCounties()"> ${esc(p.name)}</label>`
+    ).join('');
   }
-  // County cascading
-  if (provSel) provSel.onchange = () => {
-    const pid = provSel.value;
-    const csel = document.getElementById('dashCountyFilter');
-    if (!csel) return;
-    const prov = State.provinces.find(p => p.id === pid);
-    csel.innerHTML = '<option value="">همه شهرستان‌ها</option>' +
-      (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
-  };
   // Buttons
   const applyBtn = document.getElementById('applyDashFilter');
   if (applyBtn) applyBtn.onclick = renderDashboard;
   const clearBtn = document.getElementById('clearDashFilter');
   if (clearBtn) clearBtn.onclick = () => {
-    document.getElementById('dashPlanFilter').value = '';
+    document.querySelectorAll('.ms-panel input:checked').forEach(c => c.checked = false);
     document.getElementById('dashStatusFilter').value = '';
-    document.getElementById('dashProvinceFilter').value = '';
-    document.getElementById('dashCountyFilter').innerHTML = '<option value="">همه شهرستان‌ها</option>';
     document.getElementById('dashVillageFilter').value = '';
+    updateMsBtn('dashPlanMs','dashPlanMsBtn','طرح');
+    updateMsBtn('dashProvMs','dashProvMsBtn','استان');
+    updateDashCounties();
     renderDashboard();
   };
   const exportBtn = document.getElementById('exportDashCSV');
@@ -2023,19 +2017,73 @@ function initDashboard() {
   if (excelBtn) excelBtn.onclick = exportDashboardExcel;
 }
 
+function toggleMs(id) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  // Close other panels
+  document.querySelectorAll('.ms-panel.open').forEach(p => { if (p.id !== id) p.classList.remove('open'); });
+  panel.classList.toggle('open');
+}
+
+function updateMsBtn(panelId, btnId, label) {
+  const panel = document.getElementById(panelId);
+  const btn = document.getElementById(btnId);
+  if (!panel || !btn) return;
+  const checked = Array.from(panel.querySelectorAll('input:checked'));
+  if (checked.length === 0) {
+    btn.textContent = `همه ${label}‌ها ▾`;
+  } else if (checked.length <= 2) {
+    btn.textContent = checked.map(c => c.parentElement.textContent.trim()).join('، ') + ' ▾';
+  } else {
+    btn.textContent = `${fa(checked.length)} ${label} انتخاب شده ▾`;
+  }
+}
+
+function getMsValues(panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return [];
+  return Array.from(panel.querySelectorAll('input:checked')).map(c => c.value);
+}
+
+function updateDashCounties() {
+  const provIds = getMsValues('dashProvMs');
+  const countyPanel = document.getElementById('dashCountyMs');
+  if (!countyPanel) return;
+  let counties = [];
+  if (provIds.length === 0) {
+    // All counties
+    counties = (State.provinces||[]).flatMap(p => p.counties || []);
+  } else {
+    counties = (State.provinces||[]).filter(p => provIds.includes(p.id)).flatMap(p => p.counties || []);
+  }
+  countyPanel.innerHTML = counties.map(c =>
+    `<label><input type="checkbox" value="${c.id}" onchange="updateMsBtn('dashCountyMs','dashCountyMsBtn','شهرستان')"> ${esc(c.name)}</label>`
+  ).join('');
+  // Reset button
+  const btn = document.getElementById('dashCountyMsBtn');
+  if (btn) btn.textContent = 'همه شهرستان‌ها ▾';
+}
+
+// Close multi-select on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.multi-select')) {
+    document.querySelectorAll('.ms-panel.open').forEach(p => p.classList.remove('open'));
+  }
+});
+
 async function renderDashboard() {
   // Build filter params
   const params = new URLSearchParams();
-  const planId = document.getElementById('dashPlanFilter')?.value;
+  const planIds = getMsValues('dashPlanMs');
   const status = document.getElementById('dashStatusFilter')?.value;
   const village = document.getElementById('dashVillageFilter')?.value.trim();
-  const provinceId = document.getElementById('dashProvinceFilter')?.value;
-  const countyId = document.getElementById('dashCountyFilter')?.value;
-  if (planId) params.set('plan_id', planId);
+  const provinceIds = getMsValues('dashProvMs');
+  const countyIds = getMsValues('dashCountyMs');
+  if (planIds.length) params.set('plan_id', planIds.join(','));
   if (status) params.set('status_category', status);
   if (village) params.set('village', village);
-  if (provinceId) params.set('province_id', provinceId);
-  if (countyId) params.set('county_id', countyId);
+  if (provinceIds.length) params.set('province_id', provinceIds.join(','));
+  if (countyIds.length) params.set('county_id', countyIds.join(','));
   
   // Fetch filtered records
   let records = [];
@@ -2146,32 +2194,32 @@ function renderDashboardTable(records) {
 function exportDashboardCSV() {
   const params = new URLSearchParams();
   params.set('format', 'csv');
-  const planId = document.getElementById('dashPlanFilter')?.value;
+  const planIds = getMsValues('dashPlanMs');
   const status = document.getElementById('dashStatusFilter')?.value;
   const village = document.getElementById('dashVillageFilter')?.value.trim();
-  const provinceId = document.getElementById('dashProvinceFilter')?.value;
-  const countyId = document.getElementById('dashCountyFilter')?.value;
-  if (planId) params.set('plan_id', planId);
+  const provinceIds = getMsValues('dashProvMs');
+  const countyIds = getMsValues('dashCountyMs');
+  if (planIds.length) params.set('plan_id', planIds.join(','));
   if (status) params.set('status_category', status);
   if (village) params.set('village', village);
-  if (provinceId) params.set('province_id', provinceId);
-  if (countyId) params.set('county_id', countyId);
+  if (provinceIds.length) params.set('province_id', provinceIds.join(','));
+  if (countyIds.length) params.set('county_id', countyIds.join(','));
   window.location.href = `/api/plan-report?${params}`;
 }
 
 async function exportDashboardExcel() {
   // Fetch filtered data
   const params = new URLSearchParams();
-  const planId = document.getElementById('dashPlanFilter')?.value;
+  const planIds = getMsValues('dashPlanMs');
   const status = document.getElementById('dashStatusFilter')?.value;
   const village = document.getElementById('dashVillageFilter')?.value.trim();
-  const provinceId = document.getElementById('dashProvinceFilter')?.value;
-  const countyId = document.getElementById('dashCountyFilter')?.value;
-  if (planId) params.set('plan_id', planId);
+  const provinceIds = getMsValues('dashProvMs');
+  const countyIds = getMsValues('dashCountyMs');
+  if (planIds.length) params.set('plan_id', planIds.join(','));
   if (status) params.set('status_category', status);
   if (village) params.set('village', village);
-  if (provinceId) params.set('province_id', provinceId);
-  if (countyId) params.set('county_id', countyId);
+  if (provinceIds.length) params.set('province_id', provinceIds.join(','));
+  if (countyIds.length) params.set('county_id', countyIds.join(','));
   
   let records = [];
   try {
