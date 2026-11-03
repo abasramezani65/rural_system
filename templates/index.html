@@ -154,75 +154,65 @@
 
   <!-- SUMMARY & CHARTS -->
   <section id="summary" class="panel">
+    <!-- Dashboard Filters -->
     <div class="card">
-      <h2>جمع‌بندی و فیلتر روستاها</h2>
-      <p class="hint">در حالت «همه خدمات انتخابی»، روستا باید تمام خدمات را داشته باشد. در حالت «حداقل یکی»، روستاهای تک‌خدمتی و چندخدمتی هم نمایش داده می‌شوند.</p>
-      <div class="grid">
-        <div><label>خدمات موردنظر</label><div id="filterServices" class="service-list"></div></div>
-        <div>
-          <label for="filterMode">منطق فیلتر</label>
-          <select id="filterMode">
-            <option value="all">فقط روستاهایی که تمام خدمات انتخابی را دارند (AND)</option>
-            <option value="any">روستاهایی که حداقل یکی از خدمات را دارند (OR)</option>
-          </select>
-          <div style="margin-top:12px"><label for="filterProvince">استان</label><select id="filterProvince"></select></div>
-          <div style="margin-top:12px"><label for="filterCounty">شهرستان</label><select id="filterCounty"></select></div>
-          <div class="actions">
-            <button id="applyFilter">اعمال فیلتر</button>
-            <button class="secondary" id="clearFilter">حذف فیلترها</button>
-          </div>
+      <h2>📊 داشبورد طرح‌های پویا</h2>
+      <div class="grid three">
+        <div><label>طرح</label><select id="dashPlanFilter"><option value="">همه طرح‌ها</option></select></div>
+        <div><label>وضعیت</label><select id="dashStatusFilter">
+          <option value="">همه وضعیت‌ها</option>
+          <option value="done">✅ انجام‌شده</option>
+          <option value="in_progress">🔄 در حال انجام</option>
+          <option value="capacity">📋 دارای ظرفیت</option>
+        </select></div>
+        <div><label>استان</label><select id="dashProvinceFilter"><option value="">همه استان‌ها</option></select></div>
+        <div><label>شهرستان</label><select id="dashCountyFilter"><option value="">همه شهرستان‌ها</option></select></div>
+        <div><label>روستا</label><input id="dashVillageFilter" placeholder="نام روستا"></div>
+        <div class="actions" style="align-items:end">
+          <button id="applyDashFilter">اعمال فیلتر</button>
+          <button class="secondary" id="clearDashFilter">حذف فیلتر</button>
         </div>
       </div>
     </div>
 
+    <!-- Statistics Row 1 -->
     <div class="stats">
-      <div class="stat"><b id="statVillages">۰</b><span>روستاهای منطبق</span></div>
-      <div class="stat"><b id="statServices">۰</b><span>ثبت خدمت</span></div>
-      <div class="stat"><b id="statBeneficiaries">۰</b><span>بهره‌مندان</span></div>
-      <div class="stat"><b id="statProvinces">۰</b><span>استان‌ها</span></div>
+      <div class="stat"><b id="dashTotalRecords" style="color:var(--blue)">۰</b><span>کل ثبت‌ها</span></div>
+      <div class="stat"><b id="dashDone" style="color:var(--green)">۰</b><span>✅ انجام‌شده</span></div>
+      <div class="stat"><b id="dashInProgress" style="color:var(--gold)">۰</b><span>🔄 در حال انجام</span></div>
+      <div class="stat"><b id="dashCapacity" style="color:#8b94ac">۰</b><span>📋 ظرفیت انجام</span></div>
     </div>
 
-    <!-- CHARTS -->
+    <!-- Statistics Row 2 -->
+    <div class="stats">
+      <div class="stat"><b id="dashVillages">۰</b><span>روستاها</span></div>
+      <div class="stat"><b id="dashPlans">۰</b><span>طرح‌های فعال</span></div>
+      <div class="stat"><b id="dashProvinces">۰</b><span>استان‌ها</span></div>
+      <div class="stat"><b id="dashCounties">۰</b><span>شهرستان‌ها</span></div>
+    </div>
+
+    <!-- Charts -->
     <div class="chart-container">
-      <h2>نمودار آماری خدمات</h2>
+      <h2>نمودارهای آماری</h2>
       <div class="grid two" style="grid-template-columns:1fr 1fr">
         <div>
-          <h3>توزیع خدمات ثبت‌شده</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartServices"></canvas></div>
+          <h3>توزیع ثبت بر اساس طرح</h3>
+          <div class="chart-canvas-wrap"><canvas id="chartPlanDist"></canvas></div>
         </div>
         <div>
-          <h3>خدمات بر اساس استان</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartProvinces"></canvas></div>
+          <h3>تفکیک وضعیت‌ها</h3>
+          <div class="chart-canvas-wrap"><canvas id="chartStatusDist"></canvas></div>
         </div>
       </div>
     </div>
 
+    <!-- Results Table -->
     <div class="card">
       <div class="actions" style="justify-content:space-between;margin-top:0">
-        <h2 style="margin:0">نتایج فیلتر</h2>
-        <button class="gold" id="exportFiltered">دانلود نتایج CSV</button>
+        <h2 style="margin:0">جزئیات ثبت‌ها</h2>
+        <button class="gold" id="exportDashCSV">📥 دانلود CSV</button>
       </div>
-      <div id="summaryResults" class="table-wrap" style="margin-top:12px"></div>
-    </div>
-
-    <!-- PLAN REPORT (گزارش طرح‌ها) -->
-    <div class="card">
-      <div class="actions" style="justify-content:space-between;margin-top:0">
-        <h2 style="margin:0">📊 گزارش طرح‌های پویا</h2>
-        <button class="gold" id="exportPlanReport">دانلود CSV</button>
-      </div>
-      <div class="grid three" style="margin-top:12px">
-        <div><label>طرح</label><select id="reportPlanFilter"><option value="">همه طرح‌ها</option></select></div>
-        <div><label>وضعیت</label><select id="reportStatusFilter">
-          <option value="">همه وضعیت‌ها</option>
-          <option value="done">انجام‌شده</option>
-          <option value="in_progress">در حال انجام</option>
-          <option value="capacity">دارای ظرفیت</option>
-        </select></div>
-        <div><label>روستا</label><input id="reportVillageFilter" placeholder="نام روستا"></div>
-      </div>
-      <div class="actions"><button id="applyPlanReport">اعمال فیلتر</button></div>
-      <div id="planReportResults" class="table-wrap" style="margin-top:12px"></div>
+      <div id="dashResults" class="table-wrap" style="margin-top:12px"></div>
     </div>
   </section>
 
