@@ -1859,7 +1859,7 @@ async function submitPlanRecords() {
       const address = document.getElementById('planAddress')?.value?.trim() || '';
       // For non-done statuses, use supplementary description; for done, use address
       const desc = State.selectedPlanStatus === 'done' ? address : (supDesc || address);
-      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId, district_id: document.getElementById('planDistrict')?.value || '', description: desc}});
+      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId, district_id: document.getElementById('planDistrict')?.value || '', expert_name: State.user?.name || '', role_id: State.user?.role || '', description: desc}});
       if (r.ok) success++;
       else if (r.duplicate) errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error}`);
       else errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error||'خطا'}`);
@@ -2309,8 +2309,12 @@ function formatNumSeparator(input) {
   // Get cursor position
   const cursorPos = input.selectionStart;
   const oldLen = input.value.length;
+  // Convert Persian/Arabic digits to ASCII
+  let val = input.value
+    .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
   // Remove non-digits
-  let digits = input.value.replace(/[^\d]/g, '');
+  let digits = val.replace(/[^\d]/g, '');
   if (!digits) { input.value = ''; return; }
   // Format with thousand separators (Persian)
   const formatted = Number(digits).toLocaleString('fa-IR');
