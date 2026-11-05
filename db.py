@@ -1163,3 +1163,47 @@ def get_plan_stats():
         'capacity': capacity_count,
         'villages_count': villages_count,
     }
+
+
+# ===== PASSWORD RESET REQUESTS =====
+def create_reset_request(user_id, user_name, username, province_id, county_id, user_role):
+    """Create a password reset request."""
+    rid = uid('rr')
+    _exec(
+        'INSERT INTO password_reset_requests(id, user_id, user_name, username, '
+        'province_id, county_id, user_role, status) VALUES (?,?,?,?,?,?,?,?)',
+        (rid, user_id, user_name, username, province_id or None, county_id or None, user_role, 'pending')
+    )
+    return rid
+
+
+def list_reset_requests(status='pending', admin_role='national', admin_province_id=None):
+    """List reset requests. Provincial admin sees their province's requests."""
+    sql = 'SELECT * FROM password_reset_requests WHERE status=?'
+    params = [status]
+    if admin_role == 'provincial' and admin_province_id:
+        sql += ' AND province_id=?'
+        params.append(admin_province_id)
+    sql += ' ORDER BY created_at DESC'
+    return rows_to_dicts(_fetchall(sql, tuple(params)))
+
+
+def approve_reset_request(rid, reviewed_by):
+    """Approve request — reset password to 123456789."""
+    req = _fetchone('SELECT * FROM password_reset_requests WHERE id=?', (rid,))
+    if not req:
+        raise ValueError('درخواست یافت نشد.')
+    # Reset the user's password to default
+    user = _fetchone('SELECT * FROM users WHERE username=?', (req['username'],))
+    if user:
+        _exec('UPDATE users SET password_hash=? WHERE id=?',
+              (generate_password_hash('123456789'), user['id']))
+    # Mark request as approved
+    _exec('UPDATE password_reset_requests SET status=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?',
+          ('approved', reviewed_by, rid))
+
+
+def reject_reset_request(rid, reviewed_by):
+    """Reject request."""
+    _exec('UPDATE password_reset_requests SET status=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?',
+          ('rejected', reviewed_by, rid))
