@@ -313,7 +313,27 @@ function renderBranding() {
   document.getElementById('appTitle').textContent = s.title || 'سامانه پایش خدمات روستایی';
   document.getElementById('appSubtitle').textContent = s.subtitle || '';
   document.title = s.title || 'سامانه پایش خدمات روستایی';
-  // Logo / banner: not loaded as base64 in this version
+  // Logo
+  const logoSlot = document.getElementById('logoSlot');
+  if (logoSlot) {
+    if (s.logo) {
+      logoSlot.innerHTML = `<img src="${esc(s.logo)}" alt="لوگو" style="max-width:48px;max-height:48px;border-radius:6px">`;
+      logoSlot.style.border = 'none';
+      logoSlot.style.background = 'transparent';
+    } else {
+      logoSlot.innerHTML = '<span>محل درج لوگو</span>';
+    }
+  }
+  // Header background
+  const header = document.getElementById('mainHeader');
+  if (header && s.headerBg) {
+    header.style.background = s.headerBg;
+  }
+  // Fill admin form
+  const logoInput = document.getElementById('settingLogo');
+  if (logoInput) logoInput.value = s.logo || '';
+  const headerBgInput = document.getElementById('settingHeaderBg');
+  if (headerBgInput) headerBgInput.value = s.headerBg || '#ffffff';
 }
 
 function renderAnnouncementList() {
@@ -1230,10 +1250,12 @@ async function init() {
   });
 
   // Branding
-  document.getElementById('saveBranding').addEventListener('click', async () => {
+  document.getElementById('saveBranding')?.addEventListener('click', async () => {
     const data = {
       title: document.getElementById('settingTitle').value,
       subtitle: document.getElementById('settingSubtitle').value,
+      logo: document.getElementById('settingLogo').value,
+      headerBg: document.getElementById('settingHeaderBg').value,
     };
     try {
       await api('/api/settings', { method: 'POST', body: data });
