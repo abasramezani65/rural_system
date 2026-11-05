@@ -999,7 +999,7 @@ if __name__ == '__main__':
 # ===== API: FORGOT PASSWORD (فراموشی رمز) =====
 @app.route('/api/forgot-password', methods=['POST'])
 def api_forgot_password():
-    """Public endpoint — create password reset request."""
+    """Public endpoint — create or check password reset request."""
     data = request.get_json(force=True) or {}
     name = (data.get('name') or '').strip()
     username = (data.get('username') or '').strip()
@@ -1016,14 +1016,20 @@ def api_forgot_password():
         return jsonify({'error': 'اطلاعات شما در سامانه ثبت نشده است.'}), 404
     if not user.get('active'):
         return jsonify({'error': 'این حساب غیرفعال است.'}), 403
-    # Check for existing pending request
-    existing = DB._fetchone('SELECT id FROM password_reset_requests WHERE username=? AND status=?',
-                            (username, 'pending'))
+    # Check for existing requests (any status)
+    existing = DB._fetchone(
+        'SELECT * FROM password_reset_requests WHERE username=? ORDER BY created_at DESC LIMIT 1',
+        (username,))
     if existing:
-        return jsonify({'error': 'درخواست شما قبلاً ثبت شده و در انتظار بررسی است.'}), 409
-    # Create request
+        status = existing['status']
+        if status == 'pending':
+            return jsonify({'status': 'pending', 'message': 'درخواست شما در حال رسیدگی می‌باشد.'})
+        elif status == 'approved':
+            return jsonify({'status': 'approved', 'message': 'رمز شما به ۱۲۳۴۵۶۷۸۹ تغییر یافت. لطفاً با این رمز وارد شوید.'})
+        # If rejected, allow creating a new request (fall through)
+    # Create new request
     rid = DB.create_reset_request(user['id'], name, username, province_id, county_id, user['role'])
-    return jsonify({'ok': True, 'id': rid, 'message': 'درخواست شما ثبت شد و در انتظار تأیید مدیر است.'})
+    return jsonify({'ok': True, 'status': 'created', 'message': 'درخواست شما با موفقیت ثبت شد. ظرف سه روز آینده با ورود مجدد اطلاعات، نتیجه را در همین صفحه مشاهده نمائید.'})
 
 
 @app.route('/api/reset-requests', methods=['GET'])
