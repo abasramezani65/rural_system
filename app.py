@@ -994,3 +994,84 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# ===== API: FORGOT PASSWORD (فراموشی رمز) =====
+@app.route('/api/forgot-password', methods=['POST'])
+def api_forgot_password():
+    """Public endpoint — create password reset request."""
+    data = request.get_json(force=True) or {}
+    name = (data.get('name') or '').strip()
+    username = (data.get('username') or '').strip()
+    province_id = data.get('province_id') or ''
+    county_id = data.get('county_id') or ''
+    if not name or not username:
+        return jsonify({'error': 'نام و شماره تلفن الزامی است.'}), 400
+    # Normalize phone
+    username = username.replace(' ', '').replace('-', '')
+    username = username.translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹', '0123456789'))
+    # Check if user exists
+    user = DB.get_user_by_username(username)
+    if not user:
+        return jsonify({'error': 'اطلاعات شما در سامانه ثبت نشده است.'}), 404
+    if not user.get('active'):
+        return jsonify({'error': 'این حساب غیرفعال است.'}), 403
+    # Check for existing pending request
+    existing = DB._fetchone('SELECT id FROM password_reset_requests WHERE username=? AND status=?',
+                            (username, 'pending'))
+    if existing:
+        return jsonify({'error': 'درخواست شما قبلاً ثبت شده و در انتظار بررسی است.'}), 409
+    # Create request
+    rid = DB.create_reset_request(user['id'], name, username, province_id, county_id, user['role'])
+    return jsonify({'ok': True, 'id': rid, 'message': 'درخواست شما ثبت شد و در انتظار تأیید مدیر است.'})
+
+
+@app.route('/api/reset-requests', methods=['GET'])
+def api_reset_requests_list():
+    """List pending reset requests for admin."""
+    user = current_user()
+    if not user or user['role'] == 'county':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    status = request.args.get('status', 'pending')
+    prov_id = user.get('province_id') if user['role'] == 'provincial' else None
+    reqs = DB.list_reset_requests(status=status, admin_role=user['role'], admin_province_id=prov_id)
+    # Enrich with province/county names
+    provinces_list = DB.list_provinces()
+    for r in reqs:
+        pid = r.get('province_id')
+        if pid:
+            prov = next((p for p in provinces_list if p['id'] == pid), None)
+            r['province_name'] = prov.get('name', '') if prov else ''
+        else:
+            r['province_name'] = ''
+        cid = r.get('county_id')
+        if cid:
+            for p in provinces_list:
+                for c in (p.get('counties') or []):
+                    if c['id'] == cid:
+                        r['county_name'] = c.get('name', '')
+                        break
+        else:
+            r['county_name'] = ''
+    return jsonify(reqs)
+
+
+@app.route('/api/reset-requests/<rid>/approve', methods=['POST'])
+def api_reset_approve(rid):
+    user = require_auth()
+    if not user or user['role'] == 'county':
+        return jsonify({'error': 'دسترسی غیرمجاز. فقط مدیر استانی یا کشوری.'}), 403
+    try:
+        DB.approve_reset_request(rid, user['id'])
+        return jsonify({'ok': True, 'message': 'درخواست تأیید شد. رمز به 123456789 بازگردانده شد.'})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+
+
+@app.route('/api/reset-requests/<rid>/reject', methods=['POST'])
+def api_reset_reject(rid):
+    user = require_auth()
+    if not user or user['role'] == 'county':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    DB.reject_reset_request(rid, user['id'])
+    return jsonify({'ok': True, 'message': 'درخواست رد شد.'})
