@@ -1411,3 +1411,16 @@ html[data-theme="dark"] .modal-box {
   color: white;
   border-color: #0d5a26;
 }
+
+/* Plan fields grid — 2 columns */
+.plan-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.plan-fields-grid > div {
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .plan-fields-grid { grid-template-columns: 1fr; }
+}
