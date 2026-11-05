@@ -395,12 +395,12 @@
         <p class="hint">مدیر کشوری برای هر کاربر سطح کشوری، استانی یا شهرستانی تعیین می‌کند.</p>
         <div class="grid three">
           <div><label for="userFullName">نام و نام خانوادگی</label><input id="userFullName"></div>
-          <div><label for="userUsername">نام کاربری</label><input id="userUsername"></div>
-          <div><label for="userPassword">گذرواژه جدید</label><input id="userPassword" type="password" placeholder="حداقل ۸ نویسه"></div>
+          <div><label for="userPhone">شماره تلفن همراه</label><input id="userPhone" type="tel" placeholder="مثلاً ۰۹۱۲۳۴۵۶۷۸۹" style="direction:ltr;text-align:right"></div>
           <div><label for="userRole">سطح دسترسی</label><select id="userRole"><option value="national">کشوری</option><option value="provincial">استانی</option><option value="county">شهرستانی</option></select></div>
           <div><label for="userProvince">استان مجاز</label><select id="userProvince"><option value="">انتخاب استان</option></select></div>
           <div><label for="userCounty">شهرستان مجاز</label><select id="userCounty"><option value="">انتخاب شهرستان</option></select></div>
         </div>
+        <div id="generatedPasswordInfo" style="display:none" class="notice" style="margin-top:10px"></div>
         <div class="actions">
           <button id="saveUser">افزودن کاربر</button>
           <button type="button" class="secondary" id="cancelUserEdit">پاک‌کردن فرم</button>
