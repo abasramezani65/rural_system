@@ -1758,7 +1758,7 @@ async function renderPlanForms() {
       forms.push(`
         <div class="plan-form-card">
           <h3>${esc(plan.name)}</h3>
-          ${fields.length ? fields.map(f => renderFieldInput(f, pid)).join('') : '<p class="hint">این طرح فیلد اختصاصی ندارد.</p>'}
+          ${fields.length ? `<div class="plan-fields-grid">${fields.map(f => renderFieldInput(f, pid)).join('')}</div>` : '<p class="hint">این طرح فیلد اختصاصی ندارد.</p>'}
         </div>
       `);
     } catch(e) {
