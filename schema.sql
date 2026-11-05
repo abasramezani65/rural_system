@@ -247,3 +247,17 @@ CREATE INDEX IF NOT EXISTS idx_plan_records_village ON plan_records(village);
 CREATE INDEX IF NOT EXISTS idx_plan_records_status ON plan_records(status_category);
 CREATE INDEX IF NOT EXISTS idx_plan_fields_plan ON plan_fields(plan_id);
 CREATE INDEX IF NOT EXISTS idx_plan_status_allowed_plan ON plan_status_allowed(plan_id);
+
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT,
+  user_name   TEXT NOT NULL,
+  username    TEXT NOT NULL,
+  province_id TEXT,
+  county_id   TEXT,
+  user_role   TEXT,
+  status      TEXT NOT NULL DEFAULT 'pending',
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  reviewed_by TEXT,
+  reviewed_at TEXT
+);
