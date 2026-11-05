@@ -512,6 +512,34 @@
   <div class="footer">سامانه پایش خدمات روستایی — نسخه پایتون</div>
 </div>
 
+<!-- CHANGE PASSWORD OVERLAY -->
+<div id="changePwdOverlay" class="login-overlay" style="display:none">
+  <div class="login-card" style="max-width:480px">
+    <form id="changePwdForm" class="login-form">
+      <h2 style="margin:0 0 6px;color:var(--navy)">🔐 تغییر رمز عبور</h2>
+      <p class="hint" style="margin-bottom:14px">برای ادامه، رمز عبور خود را تغییر دهید. رمز پیش‌فرض قابل استفاده نیست.</p>
+      <div class="login-field">
+        <label>رمز عبور جدید</label>
+        <input id="newPwd" type="password" placeholder="حداقل ۸ کاراکتر" style="direction:ltr">
+      </div>
+      <div class="login-field">
+        <label>تکرار رمز عبور جدید</label>
+        <input id="confirmPwd" type="password" placeholder="تکرار رمز" style="direction:ltr">
+      </div>
+      <div id="pwdRequirements" style="font-size:12px;color:var(--muted);margin:8px 0">
+        <div id="req-length">❌ حداقل ۸ کاراکتر</div>
+        <div id="req-number">❌ حداقل یک عدد</div>
+        <div id="req-letter">❌ حداقل یک حرف</div>
+        <div id="req-symbol">❌ حداقل یک نماد (!@#$)</div>
+      </div>
+      <div id="changePwdError" class="login-error"></div>
+      <div class="actions" style="margin-top:10px">
+        <button type="submit" id="changePwdBtn">تغییر رمز و ورود</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div id="toastContainer"></div>
 
