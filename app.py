@@ -526,25 +526,32 @@ def api_user_save():
         return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
     data = request.get_json(force=True) or {}
     name = (data.get('name') or '').strip()
-    username = (data.get('username') or '').strip().lower()
+    # Phone number is used as username
+    phone = (data.get('phone') or data.get('username') or '').strip()
+    # Normalize phone: convert Persian digits, remove spaces
+    phone = phone.replace(' ', '').replace('-', '')
+    phone = phone.translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹', '0123456789'))
     password = data.get('password') or ''
     role = data.get('role', 'national')
     province_id = data.get('province_id') or ''
     county_id = data.get('county_id') or ''
     user_id = data.get('id')
-    if not name or not username:
-        return jsonify({'error': 'نام و نام کاربری الزامی است.'}), 400
-    if not user_id and len(password) < 8:
-        return jsonify({'error': 'گذرواژه باید حداقل ۸ نویسه باشد.'}), 400
+    generated_password = None
+    if not name or not phone:
+        return jsonify({'error': 'نام و شماره تلفن همراه الزامی است.'}), 400
     # Check username uniqueness
-    existing = DB.get_user_by_username(username)
+    existing = DB.get_user_by_username(phone)
     if existing and existing['id'] != user_id:
-        return jsonify({'error': 'این نام کاربری قبلاً ثبت شده است.'}), 409
+        return jsonify({'error': 'این شماره تلفن قبلاً ثبت شده است.'}), 409
     if user_id:
-        DB.update_user(user_id, name, username, password, role, province_id, county_id, data.get('active', True))
+        # Update existing user — only change password if provided
+        DB.update_user(user_id, name, phone, password if password else None, role, province_id, county_id, data.get('active', True))
     else:
-        user_id = DB.create_user(name, username, password, role, province_id, county_id)
-    return jsonify({'ok': True, 'id': user_id})
+        # New user — auto-generate 4-digit password (digits 1-9)
+        import random
+        generated_password = ''.join(str(random.randint(1, 9)) for _ in range(4))
+        user_id = DB.create_user(name, phone, generated_password, role, province_id, county_id)
+    return jsonify({'ok': True, 'id': user_id, 'generated_password': generated_password, 'username': phone})
 
 
 @app.route('/api/users/<uid>/toggle', methods=['POST'])
