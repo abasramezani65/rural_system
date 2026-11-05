@@ -1,6 +1,5 @@
 /* Rural Services System - Modern Stylesheet */
-/* Font: Vazirmatn from CDN */
-@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
+/* Font: Vazirmatn loaded from Google Fonts in HTML head */
 
 :root {
   --navy: #1e2b4f;
@@ -55,7 +54,7 @@ html[data-theme="dark"] {
 body {
   margin: 0;
   background: var(--bg);
-  font-family: var(--font);
+  font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', system-ui, -apple-system, sans-serif;
   color: var(--ink);
   line-height: 1.75;
   -webkit-font-smoothing: antialiased;
