@@ -275,3 +275,18 @@ CREATE TABLE IF NOT EXISTS password_reset_requests (
   reviewed_by TEXT,
   reviewed_at TIMESTAMP
 );
+
+-- Messages (پیام‌رسانی بین کاربران)
+CREATE TABLE IF NOT EXISTS messages (
+  id               TEXT PRIMARY KEY,
+  sender_id        TEXT NOT NULL,
+  sender_name      TEXT,
+  sender_role      TEXT,
+  target_role      TEXT NOT NULL,
+  target_province_id TEXT,
+  target_county_id TEXT,
+  subject          TEXT NOT NULL,
+  body             TEXT NOT NULL,
+  is_read          INTEGER NOT NULL DEFAULT 0,
+  created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
