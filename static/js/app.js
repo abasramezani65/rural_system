@@ -2588,9 +2588,22 @@ function initForgotPassword() {
     }
     try {
       const resp = await api('/api/forgot-password', { method: 'POST', body: data });
-      if (resp.ok) {
-        successEl.style.display = '';
-        successEl.innerHTML = '✅ ' + esc(resp.message || 'درخواست شما ثبت شد.');
+      // Handle different statuses
+      const status = resp.status;
+      const msg = resp.message || '';
+      successEl.style.display = '';
+      if (status === 'approved') {
+        successEl.style.background = 'var(--green-bg)';
+        successEl.style.color = 'var(--green)';
+        successEl.innerHTML = '✅ ' + esc(msg);
+      } else if (status === 'pending') {
+        successEl.style.background = '#fff3d0';
+        successEl.style.color = '#72500b';
+        successEl.innerHTML = '⏳ ' + esc(msg);
+      } else {
+        successEl.style.background = 'var(--green-bg)';
+        successEl.style.color = 'var(--green)';
+        successEl.innerHTML = '✅ ' + esc(msg);
         document.getElementById('forgotName').value = '';
         document.getElementById('forgotPhone').value = '';
       }
