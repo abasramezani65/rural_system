@@ -1081,3 +1081,74 @@ def api_reset_reject(rid):
         return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
     DB.reject_reset_request(rid, user['id'])
     return jsonify({'ok': True, 'message': 'درخواست رد شد.'})
+
+# ===== API: MESSAGING (پیام‌رسانی) =====
+@app.route('/api/messages', methods=['GET'])
+def api_messages_list():
+    user = current_user()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    sent = request.args.get('sent') == '1'
+    if sent:
+        return jsonify(DB.list_sent(user['id']))
+    return jsonify(DB.list_inbox(user['id'], user['role'],
+                                user.get('province_id'), user.get('county_id')))
+
+
+@app.route('/api/messages', methods=['POST'])
+def api_message_send():
+    user = require_auth()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    data = request.get_json(force=True) or {}
+    target_role = data.get('target_role')
+    subject = (data.get('subject') or '').strip()
+    body = (data.get('body') or '').strip()
+    if not target_role or not subject or not body:
+        return jsonify({'error': 'گیرنده، موضوع و متن پیام الزامی است.'}), 400
+    # Determine target scope based on sender's role
+    target_province_id = None
+    target_county_id = None
+    if user['role'] == 'county':
+        # County can send to provincial (their province) or national
+        if target_role == 'provincial':
+            target_province_id = user.get('province_id')
+    elif user['role'] == 'provincial':
+        # Provincial can send to national or county (their province)
+        if target_role == 'county':
+            target_province_id = user.get('province_id')
+    elif user['role'] == 'national':
+        # National can send to provincial or county (optionally scoped)
+        target_province_id = data.get('target_province_id') or None
+        target_county_id = data.get('target_county_id') or None
+    mid = DB.send_message(user['id'], user.get('name',''), user['role'],
+                          target_role, subject, body, target_province_id, target_county_id)
+    return jsonify({'ok': True, 'id': mid})
+
+
+@app.route('/api/messages/<mid>/read', methods=['POST'])
+def api_message_read(mid):
+    user = require_auth()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    DB.mark_message_read(mid)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/messages/<mid>', methods=['DELETE'])
+def api_message_delete(mid):
+    user = require_auth()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    DB.delete_message(mid)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/messages/unread-count', methods=['GET'])
+def api_unread_count():
+    user = current_user()
+    if not user:
+        return jsonify({'count': 0})
+    count = DB.get_unread_count(user['id'], user['role'],
+                                user.get('province_id'), user.get('county_id'))
+    return jsonify({'count': count})
