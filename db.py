@@ -1207,3 +1207,44 @@ def reject_reset_request(rid, reviewed_by):
     """Reject request."""
     _exec('UPDATE password_reset_requests SET status=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?',
           ('rejected', reviewed_by, rid))
+
+# ===== MESSAGING SYSTEM (پیام‌رسانی) =====
+def send_message(sender_id, sender_name, sender_role, target_role, subject, body,
+                 target_province_id=None, target_county_id=None):
+    mid = uid('msg')
+    _exec(
+        'INSERT INTO messages(id, sender_id, sender_name, sender_role, target_role, '
+        'target_province_id, target_county_id, subject, body) VALUES (?,?,?,?,?,?,?,?,?)',
+        (mid, sender_id, sender_name, sender_role, target_role,
+         target_province_id or None, target_county_id or None, subject, body)
+    )
+    return mid
+
+
+def list_inbox(user_id, role, province_id=None, county_id=None):
+    """Get messages visible to this user based on role and scope."""
+    sql = ('SELECT * FROM messages WHERE target_role=? AND '
+           '(target_province_id IS NULL OR target_province_id=? OR target_province_id=?) '
+           'AND (target_county_id IS NULL OR target_county_id=? OR target_county_id=?) '
+           'ORDER BY created_at DESC')
+    params = (role, province_id or '', province_id or '', county_id or '', county_id or '')
+    return rows_to_dicts(_fetchall(sql, params))
+
+
+def list_sent(user_id):
+    """Get messages sent by this user."""
+    return rows_to_dicts(_fetchall(
+        'SELECT * FROM messages WHERE sender_id=? ORDER BY created_at DESC', (user_id,)))
+
+
+def mark_message_read(mid):
+    _exec('UPDATE messages SET is_read=1 WHERE id=?', (mid,))
+
+
+def delete_message(mid):
+    _exec('DELETE FROM messages WHERE id=?', (mid,))
+
+
+def get_unread_count(user_id, role, province_id=None, county_id=None):
+    msgs = list_inbox(user_id, role, province_id, county_id)
+    return sum(1 for m in msgs if not m.get('is_read'))
