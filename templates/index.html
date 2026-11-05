@@ -110,6 +110,7 @@
     <button class="tab" data-tab="summary">جمع‌بندی و نمودار</button>
     <button class="tab" data-tab="records">سوابق</button>
     <button class="tab" data-tab="admin" id="adminTab" hidden>پنل مدیریت</button>
+    <button class="tab" data-tab="messages">📬 پیام‌ها <span id="msgBadge" class="badge" style="display:none;background:var(--red);color:white;font-size:10px"></span></button>
     <button class="tab" data-tab="backup">خروجی و پشتیبان</button>
   </nav>
 
@@ -505,6 +506,40 @@
 
       </div><!-- /admin-content -->
     </div><!-- /admin-layout -->
+  </section>
+
+  <!-- MESSAGES -->
+  <section id="messages" class="panel">
+    <div class="card">
+      <div class="actions" style="justify-content:space-between;margin-top:0">
+        <h2 style="margin:0">📬 پیام‌ها</h2>
+        <button id="composeMsgBtn">✏️ پیام جدید</button>
+      </div>
+    </div>
+
+    <!-- Compose form -->
+    <div class="card" id="composeMsgCard" style="display:none">
+      <h3>پیام جدید</h3>
+      <div class="grid">
+        <div><label>گیرنده</label><select id="msgTargetRole"></select></div>
+        <div id="msgProvinceWrap" style="display:none"><label>استان (اختیاری)</label><select id="msgTargetProvince"><option value="">همه استان‌ها</option></select></div>
+      </div>
+      <div style="margin-top:10px"><label>موضوع</label><input id="msgSubject" placeholder="موضوع پیام"></div>
+      <div style="margin-top:10px"><label>متن پیام</label><textarea id="msgBody" rows="4" placeholder="متن پیام خود را بنویسید..."></textarea></div>
+      <div class="actions">
+        <button id="sendMsgBtn">ارسال پیام</button>
+        <button class="secondary" id="cancelMsgBtn">انصراف</button>
+      </div>
+    </div>
+
+    <!-- Inbox -->
+    <div class="card">
+      <div class="actions" style="margin-top:0">
+        <button class="tab active" id="inboxTab" style="border:none;background:none">📥 صندوق دریافت</button>
+        <button class="tab" id="sentTab" style="border:none;background:none">📤 صندوق ارسال</button>
+      </div>
+      <div id="msgInbox" class="table-wrap"></div>
+    </div>
   </section>
 
   <!-- BACKUP -->
