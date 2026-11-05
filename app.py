@@ -78,10 +78,13 @@ def api_login():
         if not any(p['id'] == user['province_id'] and any(c['id'] == user['county_id'] for c in p.get('counties', [])) for p in provs):
             return jsonify({'ok': False, 'error': 'شهرستان این حساب معتبر نیست.'}), 403
     token = DB.create_session(user['id'])
+    # Check if user is using default password (must change)
+    from werkzeug.security import check_password_hash
+    must_change = check_password_hash(user['password_hash'], '123456789')
     resp = jsonify({'ok': True, 'user': {
         'id': user['id'], 'name': user['name'], 'username': user['username'],
         'role': user['role'], 'province_id': user['province_id'], 'county_id': user['county_id']
-    }})
+    }, 'must_change_password': must_change})
     return set_session_cookie(resp, token)
 
 
@@ -547,11 +550,35 @@ def api_user_save():
         # Update existing user — only change password if provided
         DB.update_user(user_id, name, phone, password if password else None, role, province_id, county_id, data.get('active', True))
     else:
-        # New user — auto-generate 4-digit password (digits 1-9)
-        import random
-        generated_password = ''.join(str(random.randint(1, 9)) for _ in range(4))
+        # New user — fixed default password 123456789
+        generated_password = '123456789'
         user_id = DB.create_user(name, phone, generated_password, role, province_id, county_id)
     return jsonify({'ok': True, 'id': user_id, 'generated_password': generated_password, 'username': phone})
+
+
+@app.route('/api/change-password', methods=['POST'])
+def api_change_password():
+    user = require_auth()
+    if not user:
+        return jsonify({'error': 'احراز هویت لازم است.'}), 401
+    data = request.get_json(force=True) or {}
+    new_pwd = data.get('new_password') or ''
+    # Validate complexity
+    import re
+    if len(new_pwd) < 8:
+        return jsonify({'error': 'رمز باید حداقل ۸ کاراکتر باشد.'}), 400
+    if not re.search(r'\d', new_pwd):
+        return jsonify({'error': 'رمز باید حداقل یک عدد داشته باشد.'}), 400
+    if not re.search(r'[a-zA-Z]', new_pwd):
+        return jsonify({'error': 'رمز باید حداقل یک حرف انگلیسی داشته باشد.'}), 400
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]', new_pwd):
+        return jsonify({'error': 'رمز باید حداقل یک نماد (!@#$...) داشته باشد.'}), 400
+    # Update password
+    full_user = DB.get_user_by_username(user['username'])
+    if full_user:
+        DB.update_user(full_user['id'], full_user['name'], full_user['username'], new_pwd, 
+                       full_user['role'], full_user.get('province_id',''), full_user.get('county_id',''), 1)
+    return jsonify({'ok': True})
 
 
 @app.route('/api/users/<uid>/toggle', methods=['POST'])
