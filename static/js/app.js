@@ -2551,3 +2551,114 @@ function initChangePassword() {
     }
   });
 }
+
+// ===== FORGOT PASSWORD (فراموشی رمز) =====
+function initForgotPassword() {
+  // Populate provinces
+  const provSel = document.getElementById('forgotProvince');
+  if (provSel && !provSel.options.length) {
+    provSel.innerHTML = '<option value="">انتخاب استان</option>' +
+      (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  }
+  // County cascading
+  if (provSel) provSel.onchange = () => {
+    const pid = provSel.value;
+    const csel = document.getElementById('forgotCounty');
+    const prov = State.provinces.find(p => p.id === pid);
+    csel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
+      (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+  };
+  // Form submit
+  const form = document.getElementById('forgotPwdForm');
+  if (form) form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('forgotError');
+    const successEl = document.getElementById('forgotSuccess');
+    errEl.textContent = '';
+    successEl.style.display = 'none';
+    const data = {
+      name: document.getElementById('forgotName').value.trim(),
+      username: document.getElementById('forgotPhone').value.trim(),
+      province_id: document.getElementById('forgotProvince').value,
+      county_id: document.getElementById('forgotCounty').value,
+    };
+    if (!data.name || !data.username) {
+      errEl.textContent = 'نام و شماره تلفن الزامی است.';
+      return;
+    }
+    try {
+      const resp = await api('/api/forgot-password', { method: 'POST', body: data });
+      if (resp.ok) {
+        successEl.style.display = '';
+        successEl.innerHTML = '✅ ' + esc(resp.message || 'درخواست شما ثبت شد.');
+        document.getElementById('forgotName').value = '';
+        document.getElementById('forgotPhone').value = '';
+      }
+    } catch (err) {
+      errEl.textContent = err.message;
+    }
+  });
+}
+
+// ===== ADMIN: RESET REQUESTS MANAGEMENT =====
+async function renderResetRequests() {
+  const el = document.getElementById('resetRequestsList');
+  if (!el) return;
+  let reqs = [];
+  try {
+    reqs = await api('/api/reset-requests?status=pending');
+  } catch(e) { console.error('Reset requests error:', e); }
+  if (!reqs.length) {
+    el.innerHTML = '<div class="empty" style="padding:14px">درخواستی در انتظار بررسی وجود ندارد.</div>';
+    return;
+  }
+  const roleLabels = {national:'کشوری', provincial:'استانی', county:'شهرستانی'};
+  el.innerHTML = '<table><thead><tr><th>نام</th><th>شماره تلفن</th><th>استان</th><th>شهرستان</th><th>سطح</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>' +
+    reqs.map(r => `<tr>
+      <td>${esc(r.user_name)}</td>
+      <td dir="ltr">${esc(r.username)}</td>
+      <td>${esc(r.province_name || '')}</td>
+      <td>${esc(r.county_name || '')}</td>
+      <td>${roleLabels[r.user_role] || r.user_role}</td>
+      <td>${toJalali(r.created_at)}</td>
+      <td>
+        <button class="small" style="background:var(--green)" onclick="approveReset('${r.id}')">✓ تأیید</button>
+        <button class="small danger" onclick="rejectReset('${r.id}')">✗ رد</button>
+      </td>
+    </tr>`).join('') +
+    '</tbody></table>';
+}
+
+async function approveReset(rid) {
+  if (!confirm('با تأیید، رمز این کاربر به 123456789 بازگردانده می‌شود. ادامه؟')) return;
+  try {
+    const r = await api(`/api/reset-requests/${rid}/approve`, { method: 'POST' });
+    if (r.ok) { toast('درخواست تأیید شد. رمز بازگردانده شد.', 'success'); renderResetRequests(); }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function rejectReset(rid) {
+  if (!confirm('این درخواست رد شود؟')) return;
+  try {
+    const r = await api(`/api/reset-requests/${rid}/reject`, { method: 'POST' });
+    if (r.ok) { toast('درخواست رد شد.', 'success'); renderResetRequests(); }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// Init forgot password + reset requests on load
+document.addEventListener('DOMContentLoaded', () => {
+  initForgotPassword();
+  // Render reset requests when tab is clicked
+  const adminTab = document.querySelector('.tab[data-tab="admin"]');
+  if (adminTab) {
+    adminTab.addEventListener('click', () => {
+      setTimeout(renderResetRequests, 500);
+    });
+  }
+  // Also render when reset menu is clicked
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.adminSection === 'resetRequestsCard') {
+      setTimeout(renderResetRequests, 200);
+    }
+  });
+});
