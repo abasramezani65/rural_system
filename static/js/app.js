@@ -1839,9 +1839,12 @@ async function submitPlanRecords() {
         values[f.field_key] = document.getElementById(key)?.checked ? 1 : 0;
       } else {
         let val = document.getElementById(key)?.value?.trim() || '';
-        // Parse number/money: remove separators and convert to number
+        // Parse number/money: convert Persian digits, remove separators, convert to number
         if (f.type === 'number' || f.type === 'money') {
-          val = val.replace(/[^\d]/g, ''); // Remove everything except digits
+          val = val
+            .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+            .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+          val = val.replace(/[^\d]/g, '');
           val = val ? Number(val) : '';
         }
         values[f.field_key] = val;
