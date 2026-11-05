@@ -937,8 +937,7 @@ function editUser(id) {
   if (!u) return;
   State.editingUserId = id;
   document.getElementById('userFullName').value = u.name;
-  document.getElementById('userUsername').value = u.username;
-  document.getElementById('userPassword').value = '';
+  document.getElementById('userPhone').value = u.username;
   document.getElementById('userRole').value = u.role;
   document.getElementById('userProvince').value = u.province_id || '';
   fillUserCounties();
@@ -950,12 +949,13 @@ function editUser(id) {
 function resetUserForm() {
   State.editingUserId = null;
   document.getElementById('userFullName').value = '';
-  document.getElementById('userUsername').value = '';
-  document.getElementById('userPassword').value = '';
+  document.getElementById('userPhone').value = '';
   document.getElementById('userRole').value = 'national';
   document.getElementById('userProvince').value = '';
   fillUserCounties();
   document.getElementById('saveUser').textContent = 'افزودن کاربر';
+  const info = document.getElementById('generatedPasswordInfo');
+  if (info) info.style.display = 'none';
 }
 
 // ----- Login design rendering -----
@@ -1117,22 +1117,33 @@ async function init() {
     const data = {
       id: State.editingUserId,
       name: document.getElementById('userFullName').value.trim(),
-      username: document.getElementById('userUsername').value.trim(),
-      password: document.getElementById('userPassword').value,
+      phone: document.getElementById('userPhone').value.trim(),
       role: document.getElementById('userRole').value,
       province_id: document.getElementById('userProvince').value || '',
       county_id: document.getElementById('userCounty').value || '',
     };
-    if (!data.name || !data.username) { toast('نام و نام کاربری الزامی است.', 'error'); return; }
-    if (!data.id && data.password.length < 8) { toast('گذرواژه باید حداقل ۸ نویسه باشد.', 'error'); return; }
+    if (!data.name || !data.phone) { toast('نام و شماره تلفن همراه الزامی است.', 'error'); return; }
     try {
       const resp = await api('/api/users', { method: 'POST', body: data });
+      // Show generated password for new users
+      if (resp.generated_password) {
+        const info = document.getElementById('generatedPasswordInfo');
+        if (info) {
+          info.style.display = '';
+          info.innerHTML = `<b>✅ کاربر ایجاد شد!</b><br>
+            نام کاربری (شماره تلفن): <b dir="ltr">${esc(resp.username)}</b><br>
+            رمز عبور تولیدشده: <b dir="ltr" style="font-size:18px;color:var(--green)">${esc(resp.generated_password)}</b><br>
+            <span class="hint">این رمز را به کاربر اطلاع دهید. کاربر می‌تواند بعد از ورود آن را تغییر دهد.</span>`;
+        }
+        toast(`رمز تولیدشده: ${resp.generated_password}`, 'success');
+      } else {
+        toast('کاربر ذخیره شد.', 'success');
+      }
       // Refresh users
       const state = await api('/api/state');
       State.users = state.users || [];
       renderUsersTable();
       resetUserForm();
-      toast('کاربر ذخیره شد.');
     } catch (e) { toast(e.message, 'error'); }
   });
   document.getElementById('cancelUserEdit')?.addEventListener('click', resetUserForm);
