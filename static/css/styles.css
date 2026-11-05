@@ -228,8 +228,8 @@ html[data-theme="dark"] .ticker-track { color: #d4c088; }
 .ticker-window:hover .ticker-track { animation-play-state: paused; }
 
 @keyframes tickerMove {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 /* ===== LAYOUT ===== */
