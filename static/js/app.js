@@ -249,6 +249,8 @@ async function loadState() {
   // Init and render dashboard
   initDashboard();
   renderDashboard();
+  // Update message badge
+  updateMsgBadge();
   return data;
 }
 
@@ -2674,4 +2676,146 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(renderResetRequests, 200);
     }
   });
+});
+
+// ===== MESSAGING SYSTEM (پیام‌رسانی) =====
+let msgView = 'inbox';
+
+function initMessaging() {
+  // Compose button
+  const composeBtn = document.getElementById('composeMsgBtn');
+  if (composeBtn) composeBtn.onclick = () => {
+    const card = document.getElementById('composeMsgCard');
+    card.style.display = card.style.display === 'none' ? '' : 'none';
+    populateMsgTargets();
+  };
+  // Send button
+  const sendBtn = document.getElementById('sendMsgBtn');
+  if (sendBtn) sendBtn.onclick = sendMsg;
+  // Cancel
+  const cancelBtn = document.getElementById('cancelMsgBtn');
+  if (cancelBtn) cancelBtn.onclick = () => {
+    document.getElementById('composeMsgCard').style.display = 'none';
+    document.getElementById('msgSubject').value = '';
+    document.getElementById('msgBody').value = '';
+  };
+  // Inbox/Sent tabs
+  const inboxTab = document.getElementById('inboxTab');
+  const sentTab = document.getElementById('sentTab');
+  if (inboxTab) inboxTab.onclick = () => { msgView = 'inbox'; renderMessages(); };
+  if (sentTab) sentTab.onclick = () => { msgView = 'sent'; renderMessages(); };
+  // Messages tab click
+  const msgTab = document.querySelector('.tab[data-tab="messages"]');
+  if (msgTab) msgTab.addEventListener('click', () => setTimeout(renderMessages, 200));
+}
+
+function populateMsgTargets() {
+  const sel = document.getElementById('msgTargetRole');
+  if (!sel) return;
+  const role = State.user?.role;
+  let options = [];
+  if (role === 'county') {
+    options = [
+      {value:'provincial', text:'مدیر استانی'},
+      {value:'national', text:'مدیر کشوری'},
+    ];
+  } else if (role === 'provincial') {
+    options = [
+      {value:'national', text:'مدیر کشوری'},
+      {value:'county', text:'کاربران شهرستانی استان'},
+    ];
+  } else if (role === 'national') {
+    options = [
+      {value:'provincial', text:'مدیران استانی'},
+      {value:'county', text:'کاربران شهرستانی'},
+    ];
+  }
+  sel.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+  // Show province selector only for national
+  const provWrap = document.getElementById('msgProvinceWrap');
+  if (provWrap) provWrap.style.display = role === 'national' ? '' : 'none';
+  if (role === 'national') {
+    const provSel = document.getElementById('msgTargetProvince');
+    if (provSel) {
+      provSel.innerHTML = '<option value="">همه استان‌ها</option>' +
+        (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    }
+  }
+}
+
+async function sendMsg() {
+  const targetRole = document.getElementById('msgTargetRole')?.value;
+  const subject = document.getElementById('msgSubject')?.value.trim();
+  const body = document.getElementById('msgBody')?.value.trim();
+  const targetProvinceId = document.getElementById('msgTargetProvince')?.value || undefined;
+  if (!subject || !body) { toast('موضوع و متن پیام الزامی است', 'error'); return; }
+  try {
+    const r = await api('/api/messages', {method:'POST', body: {target_role: targetRole, subject, body, target_province_id: targetProvinceId}});
+    if (r.ok) {
+      toast('پیام ارسال شد', 'success');
+      document.getElementById('composeMsgCard').style.display = 'none';
+      document.getElementById('msgSubject').value = '';
+      document.getElementById('msgBody').value = '';
+      renderMessages();
+    }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function renderMessages() {
+  const el = document.getElementById('msgInbox');
+  if (!el) return;
+  let msgs = [];
+  try {
+    const url = msgView === 'sent' ? '/api/messages?sent=1' : '/api/messages';
+    msgs = await api(url);
+  } catch(e) { console.error('Messages error:', e); }
+  if (!msgs.length) {
+    el.innerHTML = `<div class="empty" style="padding:14px">${msgView === 'sent' ? 'پیامی ارسال نکرده‌اید.' : 'پیامی دریافت نکرده‌اید.'}</div>`;
+    return;
+  }
+  const roleLabels = {national:'مدیر کشوری', provincial:'مدیر استانی', county:'کاربر شهرستانی'};
+  el.innerHTML = `<table>
+    <thead><tr>
+      <th>وضعیت</th>${msgView==='sent'?'<th>گیرنده</th>':'<th>فرستنده</th>'}<th>موضوع</th><th>متن</th><th>تاریخ</th><th>عملیات</th>
+    </tr></thead>
+    <tbody>
+      ${msgs.map(m => `<tr style="${m.is_read ? '' : 'font-weight:bold;background:var(--bg-alt)'}">
+        <td>${m.is_read ? '✅ خوانده‌شده' : '🔵 جدید'}</td>
+        <td>${msgView==='sent' ? (roleLabels[m.target_role]||m.target_role) : esc(m.sender_name||'')}</td>
+        <td>${esc(m.subject)}</td>
+        <td>${esc((m.body||'').substring(0,50))}${(m.body||'').length>50?'...':''}</td>
+        <td>${toJalali(m.created_at)}</td>
+        <td>
+          ${msgView==='inbox' && !m.is_read ? `<button class="small" onclick="markMsgRead('${m.id}')">✓ خواندن</button>` : ''}
+          <button class="small danger" onclick="delMsg('${m.id}')">🗑</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function markMsgRead(mid) {
+  try { await api(`/api/messages/${mid}/read`, {method:'POST'}); renderMessages(); updateMsgBadge(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+async function delMsg(mid) {
+  if (!confirm('پیام حذف شود؟')) return;
+  try { await api(`/api/messages/${mid}`, {method:'DELETE'}); renderMessages(); updateMsgBadge(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+async function updateMsgBadge() {
+  try {
+    const r = await api('/api/messages/unread-count');
+    const badge = document.getElementById('msgBadge');
+    if (badge) {
+      if (r.count > 0) { badge.textContent = fa(r.count); badge.style.display = ''; }
+      else { badge.style.display = 'none'; }
+    }
+  } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initMessaging();
 });
