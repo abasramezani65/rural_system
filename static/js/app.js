@@ -183,6 +183,13 @@ function bindLogin() {
     btn.disabled = true;
     try {
       const resp = await api('/api/login', { method: 'POST', body: { username, password } });
+      // Check if must change password
+      if (resp.must_change_password) {
+        document.getElementById('loginOverlay').classList.add('hidden');
+        document.getElementById('changePwdOverlay').style.display = 'flex';
+        initChangePassword();
+        return;
+      }
       toast('خوش آمدید ' + resp.user.name);
       await loadState();
       showApp();
@@ -2492,3 +2499,55 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ===== CHANGE PASSWORD (تغییر رمز اجباری) =====
+function initChangePassword() {
+  const newPwd = document.getElementById('newPwd');
+  const confirmPwd = document.getElementById('confirmPwd');
+  const errEl = document.getElementById('changePwdError');
+  const form = document.getElementById('changePwdForm');
+  
+  // Real-time validation
+  if (newPwd) newPwd.addEventListener('input', () => {
+    const val = newPwd.value;
+    const hasLen = val.length >= 8;
+    const hasNum = /\d/.test(val);
+    const hasLetter = /[a-zA-Z]/.test(val);
+    const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};:'",.<>?/\\|`~]/.test(val);
+    document.getElementById('req-length').textContent = (hasLen ? '✅' : '❌') + ' حداقل ۸ کاراکتر';
+    document.getElementById('req-number').textContent = (hasNum ? '✅' : '❌') + ' حداقل یک عدد';
+    document.getElementById('req-letter').textContent = (hasLetter ? '✅' : '❌') + ' حداقل یک حرف';
+    document.getElementById('req-symbol').textContent = (hasSymbol ? '✅' : '❌') + ' حداقل یک نماد (!@#$)';
+  });
+  
+  if (form) form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.textContent = '';
+    const val = newPwd.value;
+    const confirm = confirmPwd.value;
+    if (val !== confirm) {
+      errEl.textContent = 'رمز و تکرار آن یکسان نیستند.';
+      return;
+    }
+    if (val.length < 8 || !/\d/.test(val) || !/[a-zA-Z]/.test(val) || !/[!@#$%^&*()_+\-=\[\]{};:'",.<>?/\\|`~]/.test(val)) {
+      errEl.textContent = 'رمز باید حداقل ۸ کاراکتر و شامل عدد، حرف و نماد باشد.';
+      return;
+    }
+    const btn = document.getElementById('changePwdBtn');
+    const orig = btn.textContent;
+    btn.textContent = 'در حال ذخیره...';
+    btn.disabled = true;
+    try {
+      await api('/api/change-password', { method: 'POST', body: { new_password: val } });
+      toast('رمز با موفقیت تغییر کرد', 'success');
+      document.getElementById('changePwdOverlay').style.display = 'none';
+      await loadState();
+      showApp();
+    } catch (err) {
+      errEl.textContent = err.message;
+    } finally {
+      btn.textContent = orig;
+      btn.disabled = false;
+    }
+  });
+}
