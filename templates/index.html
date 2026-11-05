@@ -61,7 +61,7 @@
         <label class="login-remember">
           <input type="checkbox" id="loginRemember"> مرا به‌خاطر بسپار
         </label>
-        <a href="#" id="loginForgotPassword">فراموشی رمز عبور؟</a>
+        <a href="#" id="loginForgotPassword" onclick="document.getElementById('forgotPwdOverlay').style.display='flex';return false;">فراموشی رمز عبور؟</a>
       </div>
       <div class="actions login-actions">
         <button id="loginSubmitButton" type="submit">
@@ -292,6 +292,7 @@
         <button class="admin-menu-item" data-admin-section="brandingCard">📝 عنوان و اعلان‌ها</button>
         <button class="admin-menu-item" data-admin-section="customFieldsCard">📋 فیلدهای فرم</button>
         <button class="admin-menu-item" data-admin-section="geoCard">🗺 استان‌ها و شهرستان‌ها</button>
+        <button class="admin-menu-item" data-admin-section="resetRequestsCard">🔑 تغییر گذرواژه</button>
       </div>
       <!-- Content Area -->
       <div class="admin-content">
@@ -493,6 +494,15 @@
       </div>
     </div>
 
+    <!-- RESET REQUESTS MANAGEMENT -->
+    <div class="card collapsible expanded admin-section" id="resetRequestsCard">
+      <div class="card-body">
+        <h3>🔑 درخواست‌های فراموشی رمز</h3>
+        <p class="hint">درخواست‌های در انتظار بررسی. با تأیید، رمز کاربر به 123456789 بازگردانده می‌شود.</p>
+        <div id="resetRequestsList"></div>
+      </div>
+    </div>
+
       </div><!-- /admin-content -->
     </div><!-- /admin-layout -->
   </section>
@@ -510,6 +520,40 @@
   </section>
 
   <div class="footer">سامانه پایش خدمات روستایی — نسخه پایتون</div>
+</div>
+
+<!-- FORGOT PASSWORD OVERLAY -->
+<div id="forgotPwdOverlay" class="login-overlay" style="display:none">
+  <div class="login-card" style="max-width:520px">
+    <form id="forgotPwdForm" class="login-form">
+      <h2 style="margin:0 0 6px;color:var(--navy)">🔑 فراموشی رمز عبور</h2>
+      <p class="hint" style="margin-bottom:14px">اطلاعات خود را وارد کنید تا درخواست شما برای بررسی به مدیر ارسال شود.</p>
+      <div class="login-field">
+        <label>نام و نام خانوادگی</label>
+        <input id="forgotName" placeholder="نام شما">
+      </div>
+      <div class="grid two" style="gap:10px">
+        <div class="login-field">
+          <label>استان</label>
+          <select id="forgotProvince"></select>
+        </div>
+        <div class="login-field">
+          <label>شهرستان</label>
+          <select id="forgotCounty"><option value="">انتخاب شهرستان</option></select>
+        </div>
+      </div>
+      <div class="login-field">
+        <label>شماره تلفن همراه (نام کاربری)</label>
+        <input id="forgotPhone" type="tel" placeholder="مثلاً 09123456789" style="direction:ltr;text-align:right">
+      </div>
+      <div id="forgotError" class="login-error"></div>
+      <div id="forgotSuccess" class="notice" style="display:none;margin-top:10px"></div>
+      <div class="actions" style="margin-top:10px">
+        <button type="submit">ارسال درخواست</button>
+        <button type="button" class="secondary" onclick="document.getElementById('forgotPwdOverlay').style.display='none'">انصراف</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- CHANGE PASSWORD OVERLAY -->
