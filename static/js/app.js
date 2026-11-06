@@ -2555,10 +2555,17 @@ function initChangePassword() {
 }
 
 // ===== FORGOT PASSWORD (فراموشی رمز) =====
-function initForgotPassword() {
+async function initForgotPassword() {
+  // If provinces not loaded (user not logged in), fetch from public state
+  if (!State.provinces || !State.provinces.length) {
+    try {
+      const data = await api('/api/state');
+      if (data.provinces) State.provinces = data.provinces;
+    } catch(e) { console.error('Forgot pwd: cannot load provinces', e); }
+  }
   // Populate provinces
   const provSel = document.getElementById('forgotProvince');
-  if (provSel && !provSel.options.length) {
+  if (provSel) {
     provSel.innerHTML = '<option value="">انتخاب استان</option>' +
       (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   }
