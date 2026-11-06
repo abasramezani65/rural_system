@@ -113,11 +113,12 @@ def api_state():
     """Return all data needed by frontend in one call."""
     user = current_user()
     if not user:
-        # Allow reading of public settings + login announcements/banners for login page
+        # Allow reading of public settings + login announcements/banners + provinces for forgot password
         s = DB.get_all_settings()
         return jsonify({
             'authenticated': False,
             'settings': s,
+            'provinces': DB.list_provinces(),
             'announcements': DB.list_announcements(),
             'loginAnnouncements': DB.list_login_announcements(active_only=True),
             'loginBanners': DB.list_login_banners(active_only=True),
