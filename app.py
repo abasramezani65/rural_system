@@ -1017,6 +1017,17 @@ def api_forgot_password():
         return jsonify({'error': 'اطلاعات شما در سامانه ثبت نشده است.'}), 404
     if not user.get('active'):
         return jsonify({'error': 'این حساب غیرفعال است.'}), 403
+    # Verify name matches
+    if user['name'].strip() != name:
+        return jsonify({'error': 'نام واردشده با نام ثبت‌شده در سامانه مطابقت ندارد.'}), 400
+    # Verify province matches (if user has a province)
+    if user.get('province_id'):
+        if province_id and province_id != user['province_id']:
+            return jsonify({'error': 'استان واردشده با استان ثبت‌شده در سامانه مطابقت ندارد.'}), 400
+    # Verify county matches (if user has a county)
+    if user.get('county_id'):
+        if county_id and county_id != user['county_id']:
+            return jsonify({'error': 'شهرستان واردشده با شهرستان ثبت‌شده در سامانه مطابقت ندارد.'}), 400
     # Check for existing requests (any status)
     existing = DB._fetchone(
         'SELECT * FROM password_reset_requests WHERE username=? ORDER BY created_at DESC LIMIT 1',
