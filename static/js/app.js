@@ -1012,21 +1012,23 @@ function renderLoginDesign() {
 async function init() {
   applyTheme(getStoredTheme());
   bindLogin();
-  // Pre-fetch provinces for forgot password form (public, no auth needed)
-  try {
-    const pubData = await api('/api/state');
-    if (pubData.provinces) State.provinces = pubData.provinces;
-    if (pubData.settings) State.settings = pubData.settings;
-    renderLoginDesign();
-  } catch(e) { console.error('Pre-fetch error:', e); }
-  // Check if already logged in
+  // Check if already logged in (single fetch — no pre-fetch to avoid cold start timeout)
   try {
     const data = await loadState();
     if (data.authenticated) {
       showApp();
+    } else {
+      // Provinces are included in public state response
+      renderLoginDesign();
     }
   } catch (e) {
     console.error(e);
+    // Show retry message on cold start
+    const errEl = document.getElementById('loginError');
+    if (errEl && String(e).includes('fetch')) {
+      errEl.textContent = 'سرور در حال بیدار شدن است. لطفاً چند ثانیه صبر کرده و دوباره تلاش کنید.';
+    }
+    renderLoginDesign();
   }
 
   // Bind events
