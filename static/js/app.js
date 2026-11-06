@@ -2463,27 +2463,82 @@ async function renderRecordsTab() {
     el.innerHTML = '<div class="empty">موردی یافت نشد.</div>';
     return;
   }
+  
+  // Fetch field definitions for all plans in records (for detail display)
+  const planIds = [...new Set(records.map(r => r.plan_id))];
+  for (const pid of planIds) {
+    if (pid && !State.planFieldsCache[pid]) {
+      try { State.planFieldsCache[pid] = await api(`/api/plans/${pid}/fields`); }
+      catch(e) {}
+    }
+  }
+  
   el.innerHTML = `<table>
     <thead><tr>
       <th>ردیف</th><th>طرح</th><th>روستا</th><th>استان</th><th>شهرستان</th>
-      <th>وضعیت</th><th>کارشناس</th><th>تاریخ اجرا</th><th>توضیحات</th><th>تاریخ ثبت</th><th>عملیات</th>
+      <th>وضعیت</th><th>کارشناس</th><th>تاریخ ثبت</th><th>جزئیات</th><th>عملیات</th>
     </tr></thead>
     <tbody>
-      ${records.map((r, i) => `<tr>
-        <td>${fa(i + 1)}</td>
-        <td>${esc(r.plan_name || '')}</td>
-        <td>${esc(r.village)}</td>
-        <td>${esc(r.province_name || '')}</td>
-        <td>${esc(r.county_name || '')}</td>
-        <td>${STATUS_ICONS[r.status_category] || ''} ${STATUS_LABELS[r.status_category] || r.status_category}</td>
-        <td>${esc(r.expert_name || '')}</td>
-        <td>${r.service_date ? toJalali(r.service_date) : '—'}</td>
-        <td>${esc((r.description || '').substring(0, 40))}${(r.description||'').length > 40 ? '...' : ''}</td>
-        <td>${toJalali(r.created_at)}</td>
-        <td><button class="small danger" onclick="deleteRec('${r.id}', '${esc(r.plan_name||'')}', '${esc(r.village)}')">🗑 حذف</button></td>
-      </tr>`).join('')}
+      ${records.map((r, i) => {
+        // Parse field values
+        let fieldValues = {};
+        try { fieldValues = JSON.parse(r.field_values || '{}'); } catch(e) {}
+        // Get field labels
+        const fields = State.planFieldsCache[r.plan_id] || [];
+        const detailRows = fields.map(f => {
+          let val = fieldValues[f.field_key];
+          if (val === undefined || val === '' || val === null) return null;
+          // Format value
+          if (Array.isArray(val)) val = val.join('، ');
+          if (typeof val === 'number' && (f.type === 'money' || f.type === 'number')) {
+            val = Number(val).toLocaleString('fa-IR');
+          }
+          return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line-soft)">
+            <span style="color:var(--muted);font-size:12px">${esc(f.label)}</span>
+            <b style="font-size:12px">${esc(String(val))}</b>
+          </div>`;
+        }).filter(Boolean).join('');
+        
+        // Also add description if present
+        let descRow = '';
+        if (r.description) {
+          descRow = `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line-soft)">
+            <span style="color:var(--muted);font-size:12px">توضیحات</span>
+            <b style="font-size:12px">${esc(r.description)}</b>
+          </div>`;
+        }
+        
+        const hasDetail = detailRows || descRow;
+        
+        return `<tr>
+          <td>${fa(i + 1)}</td>
+          <td>${esc(r.plan_name || '')}</td>
+          <td>${esc(r.village)}</td>
+          <td>${esc(r.province_name || '')}</td>
+          <td>${esc(r.county_name || '')}</td>
+          <td>${STATUS_ICONS[r.status_category] || ''} ${STATUS_LABELS[r.status_category] || r.status_category}</td>
+          <td>${esc(r.expert_name || '')}</td>
+          <td>${toJalali(r.created_at)}</td>
+          <td>${hasDetail ? `<button class="small" onclick="toggleRecDetail('${r.id}')">📋</button>` : '—'}</td>
+          <td><button class="small danger" onclick="deleteRec('${r.id}', '${esc(r.plan_name||'')}', '${esc(r.village)}')">🗑</button></td>
+        </tr>
+        ${hasDetail ? `<tr id="detail-${r.id}" style="display:none">
+          <td colspan="10" style="background:var(--bg-alt);padding:12px 18px">
+            <div style="max-width:500px;margin:0 auto">
+              <b style="font-size:13px;color:var(--navy);display:block;margin-bottom:8px">📋 جزئیات ثبت</b>
+              ${detailRows}
+              ${descRow}
+            </div>
+          </td>
+        </tr>` : ''}`;
+      }).join('')}
     </tbody>
   </table>`;
+}
+
+function toggleRecDetail(rid) {
+  const row = document.getElementById(`detail-${rid}`);
+  if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
 }
 
 async function deleteRec(rid, planName, village) {
