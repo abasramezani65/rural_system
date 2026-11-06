@@ -249,6 +249,8 @@ async function loadState() {
   // Init and render dashboard
   initDashboard();
   renderDashboard();
+  // Init records tab filters
+  initRecordsFilters();
   // Update message badge
   updateMsgBadge();
   return data;
