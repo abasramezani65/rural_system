@@ -61,7 +61,7 @@
         <label class="login-remember">
           <input type="checkbox" id="loginRemember"> مرا به‌خاطر بسپار
         </label>
-        <a href="#" id="loginForgotPassword" onclick="document.getElementById('forgotPwdOverlay').style.display='flex';return false;">فراموشی رمز عبور؟</a>
+        <a href="#" id="loginForgotPassword" onclick="document.getElementById('forgotPwdOverlay').style.display='flex';initForgotPassword();return false;">فراموشی رمز عبور؟</a>
       </div>
       <div class="actions login-actions">
         <button id="loginSubmitButton" type="submit">
@@ -563,10 +563,7 @@
     <form id="forgotPwdForm" class="login-form">
       <h2 style="margin:0 0 6px;color:var(--navy)">🔑 فراموشی رمز عبور</h2>
       <p class="hint" style="margin-bottom:14px">اطلاعات خود را وارد کنید تا درخواست شما برای بررسی به مدیر ارسال شود.</p>
-      <div class="login-field">
-        <label>نام و نام خانوادگی</label>
-        <input id="forgotName" placeholder="نام شما">
-      </div>
+      <!-- Row 1: Province + County -->
       <div class="grid two" style="gap:10px">
         <div class="login-field">
           <label>استان</label>
@@ -577,9 +574,16 @@
           <select id="forgotCounty"><option value="">انتخاب شهرستان</option></select>
         </div>
       </div>
-      <div class="login-field">
-        <label>شماره تلفن همراه (نام کاربری)</label>
-        <input id="forgotPhone" type="tel" placeholder="مثلاً 09123456789" style="direction:ltr;text-align:right">
+      <!-- Row 2: Name + Phone -->
+      <div class="grid two" style="gap:10px">
+        <div class="login-field">
+          <label>نام و نام خانوادگی</label>
+          <input id="forgotName" placeholder="نام شما">
+        </div>
+        <div class="login-field">
+          <label>شماره تلفن همراه</label>
+          <input id="forgotPhone" type="tel" placeholder="09123456789" style="direction:ltr;text-align:right">
+        </div>
       </div>
       <div id="forgotError" class="login-error"></div>
       <div id="forgotSuccess" class="notice" style="display:none;margin-top:10px"></div>
