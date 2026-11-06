@@ -1012,17 +1012,21 @@ function renderLoginDesign() {
 async function init() {
   applyTheme(getStoredTheme());
   bindLogin();
+  // Pre-fetch provinces for forgot password form (public, no auth needed)
+  try {
+    const pubData = await api('/api/state');
+    if (pubData.provinces) State.provinces = pubData.provinces;
+    if (pubData.settings) State.settings = pubData.settings;
+    renderLoginDesign();
+  } catch(e) { console.error('Pre-fetch error:', e); }
   // Check if already logged in
   try {
     const data = await loadState();
     if (data.authenticated) {
       showApp();
-    } else {
-      renderLoginDesign();
     }
   } catch (e) {
     console.error(e);
-    renderLoginDesign();
   }
 
   // Bind events
@@ -2556,7 +2560,7 @@ function initChangePassword() {
 
 // ===== FORGOT PASSWORD (فراموشی رمز) =====
 async function initForgotPassword() {
-  // If provinces not loaded (user not logged in), fetch from public state
+  // Always try to load provinces if empty
   if (!State.provinces || !State.provinces.length) {
     try {
       const data = await api('/api/state');
@@ -2566,8 +2570,12 @@ async function initForgotPassword() {
   // Populate provinces
   const provSel = document.getElementById('forgotProvince');
   if (provSel) {
-    provSel.innerHTML = '<option value="">انتخاب استان</option>' +
-      (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    if (State.provinces && State.provinces.length) {
+      provSel.innerHTML = '<option value="">انتخاب استان</option>' +
+        State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    } else {
+      provSel.innerHTML = '<option value="">در حال بارگذاری...</option>';
+    }
   }
   // County cascading
   if (provSel) provSel.onchange = () => {
