@@ -1441,3 +1441,59 @@ html[data-theme="dark"] .modal-box {
 @media (max-width: 600px) {
   .plan-fields-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== USER MENU DROPDOWN ===== */
+.user-menu-wrap {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+}
+.user-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 20px;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.user-menu-btn:hover {
+  background: rgba(255,255,255,.25);
+}
+.user-menu-arrow {
+  font-size: 10px;
+  opacity: .8;
+}
+.user-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background: var(--white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  min-width: 180px;
+  border: 1px solid var(--line-soft);
+}
+.user-menu-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: right;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: var(--ink);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .15s;
+}
+.user-menu-dropdown button:hover {
+  background: var(--bg-alt);
+}
