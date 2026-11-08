@@ -66,11 +66,10 @@ body {
 header {
   background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
   color: white;
-  padding: 28px max(18px, calc((100% - 1180px)/2));
+  padding: 22px max(18px, calc((100% - 1180px)/2));
   box-shadow: var(--shadow-md);
   position: relative;
-  overflow: visible;
-  min-height: 90px;
+  overflow: hidden;
 }
 
 /* Header background image overlay */
@@ -84,7 +83,6 @@ header {
   background-position: center;
   opacity: 0.25;
   z-index: 0;
-  border-radius: inherit;
 }
 header > * {
   position: relative;
