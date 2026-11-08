@@ -210,12 +210,21 @@ function bindLogin() {
 async function logout() {
   try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
   State.user = null;
+  // Clear login fields
+  const userInput = document.getElementById('loginUsername');
+  const passInput = document.getElementById('loginPassword');
+  const errEl = document.getElementById('loginError');
+  if (userInput) userInput.value = '';
+  if (passInput) passInput.value = '';
+  if (errEl) errEl.textContent = '';
+  // Show login overlay
   document.getElementById('loginOverlay').classList.remove('hidden');
   document.getElementById('mainHeader').hidden = true;
   document.getElementById('mainWrap').hidden = true;
   document.getElementById('tickerShell').hidden = true;
-  // Reset login screen
-  renderLoginDesign();
+  // Reset login screen — with try/catch to prevent errors
+  try { renderLoginDesign(); } catch(e) { console.error('renderLoginDesign error:', e); }
+  try { renderLoginAnnouncementsAndBanners(); } catch(e) { console.error('renderLoginAnn error:', e); }
 }
 
 // ----- State loading -----
