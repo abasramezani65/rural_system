@@ -82,17 +82,23 @@
 <!-- HEADER -->
 <header id="mainHeader" hidden>
   <div class="header-bg-image" id="headerBgImage" style="background-image:url('/static/img/header-bg-light.jpg')"></div>
-  <button id="themeToggle" class="theme-toggle" type="button">🌙 تاریک</button>
+  <div class="user-menu-wrap">
+    <div class="user-menu-btn" id="userMenuBtn">
+      <span id="userMenuName"></span>
+      <span class="user-menu-arrow">▾</span>
+    </div>
+    <div class="user-menu-dropdown" id="userMenuDropdown" style="display:none">
+      <button id="themeToggle" type="button">🌙 تاریک / ☀️ روشن</button>
+      <button id="changePwdMenuBtn" type="button">🔐 تغییر رمز عبور</button>
+      <button id="logoutBtn" type="button" style="color:#ef4444">🚪 خروج</button>
+    </div>
+  </div>
   <div class="brand-row">
     <div class="logo-slot" id="logoSlot"><span>محل درج لوگو</span></div>
     <div class="brand-title-wrap">
       <h1 id="appTitle">سامانه پایش خدمات روستایی</h1>
       <div id="titleBannerWrap" class="title-banner-wrap" hidden><img id="titleBanner" alt="بنر"></div>
       <p id="appSubtitle">ثبت خدمات در سطح شهرستان، استان و کشور</p>
-      <div id="sessionBar" class="user-chip" hidden>
-        <span id="sessionLabel"></span>
-        <button type="button" id="logoutBtn">خروج</button>
-      </div>
     </div>
   </div>
 </header>
