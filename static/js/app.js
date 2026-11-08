@@ -2631,6 +2631,15 @@ function initChangePassword() {
   const errEl = document.getElementById('changePwdError');
   const form = document.getElementById('changePwdForm');
   
+  // Cancel button
+  const cancelBtn = document.getElementById('cancelChangePwdBtn');
+  if (cancelBtn) cancelBtn.onclick = () => {
+    document.getElementById('changePwdOverlay').style.display = 'none';
+    if (newPwd) newPwd.value = '';
+    if (confirmPwd) confirmPwd.value = '';
+    if (errEl) errEl.textContent = '';
+  };
+  
   // Real-time validation
   if (newPwd) newPwd.addEventListener('input', () => {
     const val = newPwd.value;
