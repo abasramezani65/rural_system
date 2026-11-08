@@ -81,6 +81,7 @@
 
 <!-- HEADER -->
 <header id="mainHeader" hidden>
+  <div class="header-bg-image" id="headerBgImage" style="background-image:url('/static/img/header-bg-light.jpg')"></div>
   <button id="themeToggle" class="theme-toggle" type="button">🌙 تاریک</button>
   <div class="brand-row">
     <div class="logo-slot" id="logoSlot"><span>محل درج لوگو</span></div>
@@ -452,6 +453,12 @@
         </div>
         <div class="actions">
           <button id="saveBranding">ذخیره تنظیمات</button>
+        </div>
+        <h3 style="margin-top:18px">🖼 تصویر پس‌زمینه هیدر</h3>
+        <p class="hint">تصویر هیدر صفحات داخلی. برای حذف، کادر را خالی کنید.</p>
+        <div class="grid">
+          <div><label>آدرس تصویر هیدر (URL)</label><input id="settingHeaderImage" type="url" placeholder="https://example.com/header.jpg یا خالی برای حذف"></div>
+          <div class="actions" style="align-items:end"><button id="saveHeaderImage">ذخیره تصویر هیدر</button></div>
         </div>
         <h3 style="margin-top:18px">اعلان‌ها و اخبار متحرک</h3>
         <div class="grid">
