@@ -279,15 +279,36 @@ function showApp() {
   }
   applyTheme(getStoredTheme());
 
-  // Session bar
-  const sb = document.getElementById('sessionBar');
-  if (State.user) {
-    sb.hidden = false;
-    document.getElementById('sessionLabel').textContent = `${State.user.name} (${roleLabel(State.user.role)})`;
-    document.getElementById('logoutBtn').onclick = logout;
-  } else {
-    sb.hidden = true;
+  // User menu — set name and dropdown
+  const userNameEl = document.getElementById('userMenuName');
+  if (userNameEl && State.user) {
+    userNameEl.textContent = State.user.name;
   }
+  // User menu dropdown toggle
+  const menuBtn = document.getElementById('userMenuBtn');
+  const menuDropdown = document.getElementById('userMenuDropdown');
+  if (menuBtn && menuDropdown && !menuBtn._bound) {
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menuDropdown.style.display = menuDropdown.style.display === 'none' ? '' : 'none';
+    });
+    menuBtn._bound = true;
+  }
+  // Close dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (menuDropdown && !e.target.closest('.user-menu-wrap')) {
+      menuDropdown.style.display = 'none';
+    }
+  });
+  // Logout button
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.onclick = logout;
+  // Change password button
+  const changePwdBtn = document.getElementById('changePwdMenuBtn');
+  if (changePwdBtn) changePwdBtn.onclick = () => {
+    document.getElementById('changePwdOverlay').style.display = 'flex';
+    initChangePassword();
+  };
 
   // Admin tab visibility
   const adminTab = document.getElementById('adminTab');
