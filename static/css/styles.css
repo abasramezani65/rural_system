@@ -1445,25 +1445,26 @@ html[data-theme="dark"] .modal-box {
 /* ===== USER MENU DROPDOWN ===== */
 .user-menu-wrap {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 10;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
 }
 .user-menu-btn {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
-  background: rgba(255,255,255,.15);
-  border: 1px solid rgba(255,255,255,.3);
+  padding: 8px 14px;
+  background: rgba(255,255,255,.2);
+  border: 1px solid rgba(255,255,255,.4);
   border-radius: 20px;
   color: white;
   font-size: 12px;
   cursor: pointer;
   transition: background .15s;
+  min-height: 36px;
 }
-.user-menu-btn:hover {
-  background: rgba(255,255,255,.25);
+.user-menu-btn:hover, .user-menu-btn:active {
+  background: rgba(255,255,255,.35);
 }
 .user-menu-arrow {
   font-size: 10px;
@@ -1476,16 +1477,19 @@ html[data-theme="dark"] .modal-box {
   margin-top: 6px;
   background: var(--white);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 30px rgba(0,0,0,.3);
   padding: 6px;
-  min-width: 180px;
+  min-width: 200px;
   border: 1px solid var(--line-soft);
+  z-index: 200;
 }
 .user-menu-dropdown button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: right;
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: none;
   border: none;
   color: var(--ink);
@@ -1493,7 +1497,24 @@ html[data-theme="dark"] .modal-box {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background .15s;
+  min-height: 44px;
 }
-.user-menu-dropdown button:hover {
+.user-menu-dropdown button:hover, .user-menu-dropdown button:active {
   background: var(--bg-alt);
+}
+
+/* Mobile: make menu more visible */
+@media (max-width: 768px) {
+  .user-menu-wrap {
+    top: 8px;
+    left: 8px;
+  }
+  .user-menu-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+  .user-menu-dropdown {
+    min-width: 220px;
+  }
 }
