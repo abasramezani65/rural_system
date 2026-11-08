@@ -66,10 +66,11 @@ body {
 header {
   background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
   color: white;
-  padding: 22px max(18px, calc((100% - 1180px)/2));
+  padding: 28px max(18px, calc((100% - 1180px)/2));
   box-shadow: var(--shadow-md);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  min-height: 90px;
 }
 
 /* Header background image overlay */
@@ -83,6 +84,7 @@ header {
   background-position: center;
   opacity: 0.25;
   z-index: 0;
+  border-radius: inherit;
 }
 header > * {
   position: relative;
@@ -1471,17 +1473,16 @@ html[data-theme="dark"] .modal-box {
   opacity: .8;
 }
 .user-menu-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 6px;
+  position: fixed;
+  top: 60px;
+  left: 10px;
   background: var(--white);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 30px rgba(0,0,0,.3);
-  padding: 6px;
-  min-width: 200px;
+  padding: 8px;
+  min-width: 240px;
   border: 1px solid var(--line-soft);
-  z-index: 200;
+  z-index: 9999;
 }
 .user-menu-dropdown button {
   display: flex;
