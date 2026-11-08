@@ -354,6 +354,24 @@ function renderBranding() {
   if (logoInput) logoInput.value = s.logo || '';
   const headerBgInput = document.getElementById('settingHeaderBg');
   if (headerBgInput) headerBgInput.value = s.headerBg || '#ffffff';
+  const headerImageInput = document.getElementById('settingHeaderImage');
+  if (headerImageInput) headerImageInput.value = s.headerImage || '';
+  // Apply header image
+  applyHeaderImage();
+}
+
+function applyHeaderImage() {
+  const bgDiv = document.getElementById('headerBgImage');
+  if (!bgDiv) return;
+  const img = State.settings.headerImage;
+  if (img) {
+    bgDiv.style.backgroundImage = `url('${esc(img)}')`;
+    bgDiv.style.display = '';
+  } else {
+    // Default image
+    bgDiv.style.backgroundImage = "url('/static/img/header-bg-light.jpg')";
+    bgDiv.style.display = '';
+  }
 }
 
 function renderAnnouncementList() {
@@ -1300,6 +1318,17 @@ async function init() {
       renderBranding();
       toast('تنظیمات ذخیره شد.');
     } catch (e) { toast(e.message, 'error'); }
+  });
+
+  // Header image save
+  document.getElementById('saveHeaderImage')?.addEventListener('click', async () => {
+    const headerImage = document.getElementById('settingHeaderImage').value.trim();
+    try {
+      await api('/api/settings', { method: 'POST', body: { headerImage } });
+      State.settings.headerImage = headerImage;
+      applyHeaderImage();
+      toast('تصویر هیدر ذخیره شد.', 'success');
+    } catch(e) { toast(e.message, 'error'); }
   });
 
   // Login design
