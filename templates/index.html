@@ -224,22 +224,39 @@
 
     <!-- Charts -->
     <div class="chart-container">
-      <div class="actions" style="justify-content:space-between;margin-top:0;flex-wrap:wrap">
+      <div class="actions" style="justify-content:space-between;margin-top:0;flex-wrap:wrap;align-items:center">
         <h2 style="margin:0">نمودارهای آماری</h2>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="chart-dim-btn active" data-dim="plan">بر اساس طرح</button>
-          <button class="chart-dim-btn" data-dim="province">بر اساس استان</button>
-          <button class="chart-dim-btn" data-dim="county">بر اساس شهرستان</button>
-          <button class="chart-dim-btn" data-dim="village">بر اساس روستا</button>
+        <!-- Chart type selector -->
+        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+          <span class="hint" style="margin-left:4px">نمایش:</span>
+          <button class="chart-view-btn" data-view="bar">📊 فقط میله‌ای</button>
+          <button class="chart-view-btn" data-view="doughnut">🍩 فقط دایره‌ای</button>
+          <button class="chart-view-btn active" data-view="both">📊🍩 هر دو</button>
         </div>
       </div>
-      <div class="grid two" style="grid-template-columns:1fr 1fr;margin-top:12px">
-        <div>
+      <div id="chartsGrid" class="grid two" style="grid-template-columns:1fr 1fr;margin-top:12px">
+        <!-- Bar chart section -->
+        <div id="barChartSection">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+            <button class="chart-dim-btn active" data-chart="bar" data-dim="plan">طرح</button>
+            <button class="chart-dim-btn" data-chart="bar" data-dim="province">استان</button>
+            <button class="chart-dim-btn" data-chart="bar" data-dim="county">شهرستان</button>
+            <button class="chart-dim-btn" data-chart="bar" data-dim="village">روستا</button>
+            <button class="chart-dim-btn" data-chart="bar" data-dim="status">وضعیت</button>
+          </div>
           <h3 id="chartBarTitle">توزیع ثبت بر اساس طرح</h3>
           <div class="chart-canvas-wrap"><canvas id="chartPlanDist"></canvas></div>
         </div>
-        <div>
-          <h3>تفکیک وضعیت‌ها</h3>
+        <!-- Doughnut chart section -->
+        <div id="doughnutChartSection">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+            <button class="chart-dim-btn" data-chart="doughnut" data-dim="plan">طرح</button>
+            <button class="chart-dim-btn" data-chart="doughnut" data-dim="province">استان</button>
+            <button class="chart-dim-btn" data-chart="doughnut" data-dim="county">شهرستان</button>
+            <button class="chart-dim-btn" data-chart="doughnut" data-dim="village">روستا</button>
+            <button class="chart-dim-btn active" data-chart="doughnut" data-dim="status">وضعیت</button>
+          </div>
+          <h3 id="chartDoughnutTitle">تفکیک بر اساس وضعیت</h3>
           <div class="chart-canvas-wrap"><canvas id="chartStatusDist"></canvas></div>
         </div>
       </div>

@@ -2392,13 +2392,16 @@ function applyRoleBasedMenu() {
 
 // ===== PLAN DASHBOARD (داشبورد طرح‌محور) =====
 let dashCharts = {};
-let dashChartDim = 'plan';
+let dashBarDim = 'plan';          // dimension for bar chart
+let dashDoughnutDim = 'status';   // dimension for doughnut chart
+let dashChartView = 'both';       // 'bar' | 'doughnut' | 'both'
 let dashLastRecords = [];
 const DIM_LABELS = {
   plan: {field: 'plan_name', title: 'بر اساس طرح', fallback: 'نامشخص'},
   province: {field: 'province_name', title: 'بر اساس استان', fallback: 'بدون استان'},
   county: {field: 'county_name', title: 'بر اساس شهرستان', fallback: 'بدون شهرستان'},
   village: {field: 'village', title: 'بر اساس روستا', fallback: 'بدون روستا'},
+  status: {field: 'status_label', title: 'بر اساس وضعیت', fallback: 'نامشخص'},
 };
 
 function initDashboard() {
@@ -2433,15 +2436,54 @@ function initDashboard() {
   if (exportBtn) exportBtn.onclick = exportDashboardCSV;
   const excelBtn = document.getElementById('exportDashExcel');
   if (excelBtn) excelBtn.onclick = exportDashboardExcel;
-  // Chart dimension buttons
-  document.querySelectorAll('.chart-dim-btn').forEach(btn => {
+  // Chart dimension buttons (bar + doughnut, each independent)
+  document.querySelectorAll('.chart-dim-btn[data-chart="bar"]').forEach(btn => {
     btn.onclick = () => {
-      document.querySelectorAll('.chart-dim-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.chart-dim-btn[data-chart="bar"]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      dashChartDim = btn.dataset.dim;
+      dashBarDim = btn.dataset.dim;
       if (dashLastRecords.length) renderDashboardCharts(dashLastRecords);
     };
   });
+  document.querySelectorAll('.chart-dim-btn[data-chart="doughnut"]').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.chart-dim-btn[data-chart="doughnut"]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      dashDoughnutDim = btn.dataset.dim;
+      if (dashLastRecords.length) renderDashboardCharts(dashLastRecords);
+    };
+  });
+  // Chart view selector (bar / doughnut / both)
+  document.querySelectorAll('.chart-view-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.chart-view-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      dashChartView = btn.dataset.view;
+      applyChartViewVisibility();
+      if (dashLastRecords.length) renderDashboardCharts(dashLastRecords);
+    };
+  });
+}
+
+function applyChartViewVisibility() {
+  const barSec = document.getElementById('barChartSection');
+  const doughnutSec = document.getElementById('doughnutChartSection');
+  const grid = document.getElementById('chartsGrid');
+  if (!barSec || !doughnutSec || !grid) return;
+  if (dashChartView === 'bar') {
+    barSec.style.display = '';
+    doughnutSec.style.display = 'none';
+    grid.style.gridTemplateColumns = '1fr';
+  } else if (dashChartView === 'doughnut') {
+    barSec.style.display = 'none';
+    doughnutSec.style.display = '';
+    grid.style.gridTemplateColumns = '1fr';
+  } else {
+    // both
+    barSec.style.display = '';
+    doughnutSec.style.display = '';
+    grid.style.gridTemplateColumns = '1fr 1fr';
+  }
 }
 
 function toggleMs(id) {
@@ -2556,60 +2598,75 @@ function renderDashboardCharts(records) {
     if (barTitle) barTitle.textContent = '⚠️ نمودارها در دسترس نیست (کتابخانه Chart.js بارگذاری نشده)';
     return;
   }
+  // Apply visibility based on chart view selection
+  applyChartViewVisibility();
+
   // Destroy old charts
   Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
   dashCharts = {};
-  
-  // Chart 1: Bar chart by selected dimension
-  const dim = DIM_LABELS[dashChartDim] || DIM_LABELS.plan;
-  const counts = {};
-  records.forEach(r => {
-    const name = r[dim.field] || dim.fallback;
-    counts[name] = (counts[name] || 0) + 1;
-  });
-  const labels = Object.keys(counts);
-  const data = Object.values(counts);
-  
-  // Update title
-  const titleEl = document.getElementById('chartBarTitle');
-  if (titleEl) titleEl.textContent = `توزیع ثبت ${dim.title}`;
-  
-  const ctx1 = document.getElementById('chartPlanDist');
-  if (ctx1 && labels.length) {
-    // Use different colors for each bar
-    const colors = ['#3156a5', '#15803d', '#d59a19', '#8b94ac', '#b91c1c', '#1e7a8c', '#7c3aed', '#db2777'];
-    dashCharts.planDist = new Chart(ctx1, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{ label: 'تعداد ثبت', data: data, 
-          backgroundColor: labels.map((_, i) => colors[i % colors.length]),
-          borderRadius: 6 }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, 
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-      }
-    });
+
+  // Shared color palette for non-status dimensions
+  const palette = ['#3156a5', '#15803d', '#d59a19', '#8b94ac', '#b91c1c', '#1e7a8c', '#7c3aed', '#db2777', '#c2410c', '#4d7c0f'];
+  // Color helper: green for done, gold for in-progress, gray for capacity; otherwise palette
+  function colorForLabel(label, index) {
+    if (label.includes('انجام') && label.includes('شده')) return '#15803d';
+    if (label.includes('در حال')) return '#d59a19';
+    if (label.includes('ظرفیت')) return '#8b94ac';
+    return palette[index % palette.length];
   }
-  
-  // Chart 2: Status breakdown (doughnut)
-  const statusLabels = ['انجام‌شده', 'در حال انجام', 'ظرفیت انجام'];
-  const statusData = [
-    records.filter(r => r.status_category === 'done').length,
-    records.filter(r => r.status_category === 'in_progress').length,
-    records.filter(r => r.status_category === 'capacity').length,
-  ];
-  const ctx2 = document.getElementById('chartStatusDist');
-  if (ctx2 && statusData.some(d => d > 0)) {
-    dashCharts.statusDist = new Chart(ctx2, {
-      type: 'doughnut',
-      data: {
-        labels: statusLabels,
-        datasets: [{ data: statusData, backgroundColor: ['#15803d', '#d59a19', '#8b94ac'], borderWidth: 2, borderColor: '#fff' }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+
+  // Helper: aggregate records by dimension
+  function aggregateByDim(dimKey) {
+    const dim = DIM_LABELS[dimKey] || DIM_LABELS.plan;
+    const counts = {};
+    records.forEach(r => {
+      const name = r[dim.field] || dim.fallback;
+      counts[name] = (counts[name] || 0) + 1;
     });
+    return { dim, labels: Object.keys(counts), data: Object.values(counts) };
+  }
+
+  // ---- Chart 1: Bar chart (by dashBarDim) ----
+  if (dashChartView === 'bar' || dashChartView === 'both') {
+    const { dim, labels, data } = aggregateByDim(dashBarDim);
+    const titleEl = document.getElementById('chartBarTitle');
+    if (titleEl) titleEl.textContent = `توزیع ثبت ${dim.title}`;
+    const ctx1 = document.getElementById('chartPlanDist');
+    if (ctx1 && labels.length) {
+      const colors = labels.map((l, i) => colorForLabel(l, i));
+      dashCharts.planDist = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{ label: 'تعداد ثبت', data: data,
+            backgroundColor: colors,
+            borderRadius: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+  }
+
+  // ---- Chart 2: Doughnut chart (by dashDoughnutDim) ----
+  if (dashChartView === 'doughnut' || dashChartView === 'both') {
+    const { dim, labels, data } = aggregateByDim(dashDoughnutDim);
+    const dTitleEl = document.getElementById('chartDoughnutTitle');
+    if (dTitleEl) dTitleEl.textContent = `تفکیک ${dim.title}`;
+    const ctx2 = document.getElementById('chartStatusDist');
+    if (ctx2 && data.some(d => d > 0)) {
+      const colors = labels.map((l, i) => colorForLabel(l, i));
+      dashCharts.statusDist = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{ data: data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
   }
 }
 
