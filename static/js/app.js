@@ -2933,7 +2933,7 @@ function initRecordsFilters() {
     provSel.innerHTML = '<option value="">همه استان‌ها</option>' +
       (State.provinces||[]).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   }
-  // County cascading
+  // County cascading → also populate sections
   if (provSel) provSel.onchange = () => {
     const pid = provSel.value;
     const csel = document.getElementById('recCountyFilter');
@@ -2941,6 +2941,24 @@ function initRecordsFilters() {
     const prov = State.provinces.find(p => p.id === pid);
     csel.innerHTML = '<option value="">همه شهرستان‌ها</option>' +
       (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+    // Reset sections
+    const secSel = document.getElementById('recSectionFilter');
+    if (secSel) secSel.innerHTML = '<option value="">همه بخش‌ها</option>';
+  };
+  // County change → populate sections
+  const cntySel = document.getElementById('recCountyFilter');
+  if (cntySel) cntySel.onchange = () => {
+    const cid = cntySel.value;
+    const secSel = document.getElementById('recSectionFilter');
+    if (!secSel) return;
+    let sections = [];
+    for (const p of State.provinces) {
+      for (const c of (p.counties || [])) {
+        if (c.id === cid) { sections = c.sections || []; break; }
+      }
+    }
+    secSel.innerHTML = '<option value="">همه بخش‌ها</option>' +
+      sections.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
   };
   // Buttons
   const applyBtn = document.getElementById('applyRecFilter');
@@ -2951,6 +2969,8 @@ function initRecordsFilters() {
     document.getElementById('recStatusFilter').value = '';
     document.getElementById('recProvinceFilter').value = '';
     document.getElementById('recCountyFilter').innerHTML = '<option value="">همه شهرستان‌ها</option>';
+    const ss = document.getElementById('recSectionFilter');
+    if (ss) ss.innerHTML = '<option value="">همه بخش‌ها</option>';
     document.getElementById('recVillageFilter').value = '';
     renderRecordsTab();
   };
@@ -2964,11 +2984,13 @@ async function renderRecordsTab() {
   const village = document.getElementById('recVillageFilter')?.value.trim();
   const provinceId = document.getElementById('recProvinceFilter')?.value;
   const countyId = document.getElementById('recCountyFilter')?.value;
+  const sectionId = document.getElementById('recSectionFilter')?.value;
   if (planId) params.set('plan_id', planId);
   if (status) params.set('status_category', status);
   if (village) params.set('village', village);
   if (provinceId) params.set('province_id', provinceId);
   if (countyId) params.set('county_id', countyId);
+  if (sectionId) params.set('section_id', sectionId);
   
   let records = [];
   try {
@@ -2996,7 +3018,7 @@ async function renderRecordsTab() {
   
   el.innerHTML = `<table>
     <thead><tr>
-      <th>ردیف</th><th>طرح</th><th>روستا</th><th>استان</th><th>شهرستان</th>
+      <th>ردیف</th><th>طرح</th><th>روستا</th><th>استان</th><th>شهرستان</th><th>بخش</th>
       <th>وضعیت</th><th>کارشناس</th><th>تاریخ ثبت</th><th>جزئیات</th><th>عملیات</th>
     </tr></thead>
     <tbody>
@@ -3037,6 +3059,7 @@ async function renderRecordsTab() {
           <td>${esc(r.village)}</td>
           <td>${esc(r.province_name || '')}</td>
           <td>${esc(r.county_name || '')}</td>
+          <td>${esc(r.section_name || '')}</td>
           <td>${STATUS_ICONS[r.status_category] || ''} ${STATUS_LABELS[r.status_category] || r.status_category}</td>
           <td>${esc(r.expert_name || '')}</td>
           <td>${toJalali(r.created_at)}</td>
@@ -3044,7 +3067,7 @@ async function renderRecordsTab() {
           <td><button class="small danger" onclick="deleteRec('${r.id}', '${esc(r.plan_name||'')}', '${esc(r.village)}')">🗑</button></td>
         </tr>
         ${hasDetail ? `<tr id="detail-${r.id}" style="display:none">
-          <td colspan="10" style="background:var(--bg-alt);padding:12px 18px">
+          <td colspan="11" style="background:var(--bg-alt);padding:12px 18px">
             <div style="max-width:500px;margin:0 auto">
               <b style="font-size:13px;color:var(--navy);display:block;margin-bottom:8px">📋 جزئیات ثبت</b>
               ${detailRows}

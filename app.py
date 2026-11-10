@@ -995,7 +995,7 @@ def api_plan_report():
     if not user:
         return jsonify({'error': 'احراز هویت لازم است.'}), 401
     filters = {}
-    for k in ('plan_id', 'village', 'province_id', 'county_id', 'status_category'):
+    for k in ('plan_id', 'village', 'province_id', 'county_id', 'section_id', 'status_category'):
         v = request.args.get(k)
         if v:
             filters[k] = v
@@ -1004,10 +1004,11 @@ def api_plan_report():
     elif user['role'] == 'county':
         filters['county_id'] = user.get('county_id') or ''
     records = DB.list_plan_records(filters if filters else None)
-    # Enrich with plan name, province name, county name, status label
+    # Enrich with plan name, province name, county name, section name, status label
     plan_cache = {}
     prov_cache = {}
     county_cache = {}
+    section_cache = {}
     provinces_list = DB.list_provinces()
     for r in records:
         pid = r.get('plan_id')
@@ -1036,6 +1037,15 @@ def api_plan_report():
             r['county_name'] = county_cache.get(cty_id, '')
         else:
             r['county_name'] = ''
+        # Section name
+        sec_id = r.get('section_id')
+        if sec_id:
+            if sec_id not in section_cache:
+                sec_row = DB._fetchone('SELECT name FROM sections WHERE id=?', (sec_id,))
+                section_cache[sec_id] = sec_row['name'] if sec_row else ''
+            r['section_name'] = section_cache.get(sec_id, '')
+        else:
+            r['section_name'] = ''
         r['status_label'] = STATUS_LABELS.get(r.get('status_category'), r.get('status_category', ''))
     # CSV export
     if request.args.get('format') == 'csv':

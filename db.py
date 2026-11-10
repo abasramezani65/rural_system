@@ -1105,6 +1105,12 @@ def list_plan_records(filters=None):
                 placeholders = ','.join(['?' for _ in ids])
                 conditions.append(f'pr.county_id IN ({placeholders})')
                 params.extend(ids)
+        if filters.get('section_id'):
+            ids = [v.strip() for v in filters['section_id'].split(',') if v.strip()]
+            if ids:
+                placeholders = ','.join(['?' for _ in ids])
+                conditions.append(f'pr.section_id IN ({placeholders})')
+                params.extend(ids)
         if filters.get('status_category'):
             conditions.append('pr.status_category=?')
             params.append(filters['status_category'])
