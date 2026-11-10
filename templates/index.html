@@ -129,13 +129,14 @@
 
       <!-- Geographic Location -->
       <h4 class="form-section-title">📍 موقعیت جغرافیایی</h4>
-      <div class="grid five geo-fields">
+      <div class="grid four geo-fields">
         <div><label>استان</label><select id="planProvince" required></select></div>
         <div><label>شهرستان</label><select id="planCounty" required></select></div>
         <div><label>بخش</label><select id="planSection"><option value="">انتخاب بخش</option></select></div>
-        <div><label>دهستان</label><select id="planDistrict"><option value="">انتخاب دهستان</option></select></div>
         <div><label>روستا</label><input id="planVillage" required placeholder="نام روستا"></div>
       </div>
+      <!-- دهستان field is disabled by request; element kept hidden for backward compatibility -->
+      <select id="planDistrict" style="display:none"><option value="">انتخاب دهستان</option></select>
       <div class="address-field">
         <label>آدرس</label>
         <input id="planAddress" placeholder="آدرس کامل محل اجرای طرح">
