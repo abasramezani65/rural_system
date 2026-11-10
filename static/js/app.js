@@ -279,10 +279,11 @@ function showApp() {
   }
   applyTheme(getStoredTheme());
 
-  // User menu — set name and dropdown
+  // User menu — set name with role label in parentheses
   const userNameEl = document.getElementById('userMenuName');
   if (userNameEl && State.user) {
-    userNameEl.textContent = State.user.name;
+    const roleDesc = userRoleLabel(State.user);
+    userNameEl.textContent = roleDesc ? `${State.user.name} (${roleDesc})` : State.user.name;
   }
   // User menu dropdown toggle
   const menuBtn = document.getElementById('userMenuBtn');
@@ -329,6 +330,22 @@ function showApp() {
 
 function roleLabel(r) {
   return { national: 'کشوری', provincial: 'استانی', county: 'شهرستانی' }[r] || r;
+}
+
+// Build a descriptive role label with province/county name for the logged-in user
+// e.g. "مدیر کشوری", "مدیر استان همدان", "مدیر شهرستان رشت"
+function userRoleLabel(user) {
+  if (!user) return '';
+  if (user.role === 'national') return 'مدیر کشوری';
+  const prov = (State.provinces || []).find(p => p.id === user.province_id);
+  if (user.role === 'provincial') {
+    return 'مدیر استان ' + (prov ? prov.name : '');
+  }
+  if (user.role === 'county') {
+    const cnty = prov?.counties?.find(c => c.id === user.county_id);
+    return 'مدیر شهرستان ' + (cnty ? cnty.name : '');
+  }
+  return '';
 }
 
 // ----- Rendering -----
