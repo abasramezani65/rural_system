@@ -2470,19 +2470,19 @@ function applyChartViewVisibility() {
   const doughnutSec = document.getElementById('doughnutChartSection');
   const grid = document.getElementById('chartsGrid');
   if (!barSec || !doughnutSec || !grid) return;
+  // Always keep the 2-column grid so a single chart keeps the same size
+  // as when both are displayed (chart size stays consistent).
+  grid.style.gridTemplateColumns = '1fr 1fr';
   if (dashChartView === 'bar') {
     barSec.style.display = '';
     doughnutSec.style.display = 'none';
-    grid.style.gridTemplateColumns = '1fr';
   } else if (dashChartView === 'doughnut') {
     barSec.style.display = 'none';
     doughnutSec.style.display = '';
-    grid.style.gridTemplateColumns = '1fr';
   } else {
     // both
     barSec.style.display = '';
     doughnutSec.style.display = '';
-    grid.style.gridTemplateColumns = '1fr 1fr';
   }
 }
 
