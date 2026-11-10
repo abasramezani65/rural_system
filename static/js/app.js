@@ -462,6 +462,11 @@ function renderBaseSelects() {
   const pfc = document.getElementById('provinceForCounty');
   if (pfc) pfc.innerHTML = '<option value="">انتخاب استان</option>' +
     State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  // Province for section (geoCard)
+  const pfs = document.getElementById('provinceForSection');
+  if (pfs) pfs.innerHTML = '<option value="">انتخاب استان</option>' +
+    State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  fillCountyForSection();
 }
 
 function fillCountySelect() {
@@ -472,6 +477,38 @@ function fillCountySelect() {
   const prov = State.provinces.find(p => p.id === provId);
   csel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
     (prov ? prov.counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+}
+
+// Fill county dropdown in the "add section" form (geoCard)
+function fillCountyForSection() {
+  const provSel = document.getElementById('provinceForSection');
+  const cntySel = document.getElementById('countyForSection');
+  if (!provSel || !cntySel) return;
+  const provId = provSel.value;
+  const prov = State.provinces.find(p => p.id === provId);
+  cntySel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
+    (prov ? prov.counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+}
+
+// Update section dropdown in plan registration form when county changes
+function updatePlanSections() {
+  const countyId = document.getElementById('planCounty')?.value;
+  const secSel = document.getElementById('planSection');
+  if (!secSel) return;
+  let sections = [];
+  for (const p of State.provinces) {
+    for (const c of (p.counties || [])) {
+      if (c.id === countyId) {
+        sections = c.sections || [];
+        break;
+      }
+    }
+  }
+  secSel.innerHTML = '<option value="">انتخاب بخش</option>' +
+    sections.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  // Reset district dropdown
+  const distSel = document.getElementById('planDistrict');
+  if (distSel) distSel.innerHTML = '<option value="">انتخاب دهستان</option>';
 }
 
 function renderFilterSelects() {
@@ -810,17 +847,24 @@ function renderServicesAdmin() {
   });
 }
 
-// ----- Admin: provinces & counties -----
+// ----- Admin: provinces, counties & sections -----
 function renderGeoList() {
   const el = document.getElementById('geoList');
   if (!State.provinces.length) { el.innerHTML = '<div class="empty">استانی تعریف نشده</div>'; return; }
   el.innerHTML = State.provinces.map(p => `<div style="margin-bottom:10px;padding:10px;background:var(--bg-alt);border-radius:8px">
     <b>${esc(p.name)}</b>
     <button class="small danger" style="float:left" data-del-prov="${p.id}">حذف استان</button>
-    <div style="margin-top:6px">${p.counties.length ? p.counties.map(c => `<span class="badge">${esc(c.name)} <button data-del-county="${c.id}" style="background:none;border:0;color:inherit;cursor:pointer;padding:0 2px">×</button></span>`).join(' ') : '<span class="hint">شهرستانی ثبت نشده</span>'}</div>
+    <div style="margin-top:6px">${p.counties.length ? p.counties.map(c => {
+      const sectionsHtml = (c.sections && c.sections.length)
+        ? '<div style="margin-top:4px;padding-right:12px">' + c.sections.map(s =>
+            `<span class="badge" style="background:var(--blue-soft,#e8eef8);color:var(--blue,#3156a5)">بخش ${esc(s.name)} <button data-del-section="${s.id}" style="background:none;border:0;color:inherit;cursor:pointer;padding:0 2px">×</button></span>`
+          ).join(' ') + '</div>'
+        : '';
+      return `<span class="badge">${esc(c.name)} <button data-del-county="${c.id}" style="background:none;border:0;color:inherit;cursor:pointer;padding:0 2px">×</button></span>` + sectionsHtml;
+    }).join(' ') : '<span class="hint">شهرستانی ثبت نشده</span>'}</div>
   </div>`).join('');
   el.querySelectorAll('[data-del-prov]').forEach(b => b.onclick = async () => {
-    if (!confirm('استان و تمام شهرستان‌های آن حذف شود؟')) return;
+    if (!confirm('استان و تمام شهرستان‌ها/بخش‌های آن حذف شود؟')) return;
     try {
       await api(`/api/provinces/${b.dataset.delProv}`, { method: 'DELETE' });
       State.provinces = State.provinces.filter(p => p.id !== b.dataset.delProv);
@@ -835,12 +879,24 @@ function renderGeoList() {
     if (!confirm('شهرستان حذف شود؟')) return;
     try {
       await api(`/api/counties/${b.dataset.delCounty}`, { method: 'DELETE' });
-      // Remove from local state
       State.provinces.forEach(p => { p.counties = p.counties.filter(c => c.id !== b.dataset.delCounty); });
       renderGeoList();
       renderBaseSelects();
       renderFilterSelects();
       toast('شهرستان حذف شد.');
+    } catch (err) { toast(err.message, 'error'); }
+  });
+  el.querySelectorAll('[data-del-section]').forEach(b => b.onclick = async (e) => {
+    e.stopPropagation();
+    if (!confirm('بخش حذف شود؟')) return;
+    try {
+      await api(`/api/sections/${b.dataset.delSection}`, { method: 'DELETE' });
+      State.provinces.forEach(p => {
+        p.counties.forEach(c => { c.sections = (c.sections || []).filter(s => s.id !== b.dataset.delSection); });
+      });
+      renderGeoList();
+      renderBaseSelects();
+      toast('بخش حذف شد.');
     } catch (err) { toast(err.message, 'error'); }
   });
 }
@@ -1520,13 +1576,37 @@ async function init() {
     try {
       const resp = await api('/api/counties', { method: 'POST', body: { province_id: pid, name } });
       const prov = State.provinces.find(p => p.id === pid);
-      if (prov) prov.counties.push({ id: resp.id, name });
+      if (prov) prov.counties.push({ id: resp.id, name, sections: [] });
       document.getElementById('newCounty').value = '';
       renderGeoList();
       renderBaseSelects();
       renderFilterSelects();
       renderUserCountySelects();
       toast('شهرستان اضافه شد.');
+    } catch (e) { toast(e.message, 'error'); }
+  });
+
+  // Province for section dropdown change → fill counties
+  document.getElementById('provinceForSection')?.addEventListener('change', fillCountyForSection);
+
+  // Add section button
+  document.getElementById('addSection')?.addEventListener('click', async () => {
+    const pid = document.getElementById('provinceForSection').value;
+    const cid = document.getElementById('countyForSection').value;
+    const name = document.getElementById('newSection').value.trim();
+    if (!cid || !name) { toast('شهرستان و نام بخش الزامی است.', 'error'); return; }
+    try {
+      const resp = await api('/api/sections', { method: 'POST', body: { county_id: cid, name } });
+      const prov = State.provinces.find(p => p.id === pid);
+      const cnty = prov?.counties.find(c => c.id === cid);
+      if (cnty) {
+        if (!cnty.sections) cnty.sections = [];
+        cnty.sections.push({ id: resp.id, name });
+      }
+      document.getElementById('newSection').value = '';
+      renderGeoList();
+      renderBaseSelects();
+      toast('بخش اضافه شد.');
     } catch (e) { toast(e.message, 'error'); }
   });
 
@@ -2015,10 +2095,12 @@ function renderPlanRegistration() {
       renderPlanForms();
     };
   });
-  // County change → update districts
+  // County change → update sections + districts
   const countySel = document.getElementById('planCounty');
   if (provSel) provSel.onchange = () => { updatePlanCounties(); renderPlanList(); };
-  if (countySel) countySel.onchange = () => { updatePlanDistricts(); renderPlanList(); };
+  if (countySel) countySel.onchange = () => { updatePlanSections(); renderPlanList(); };
+  const sectionSel = document.getElementById('planSection');
+  if (sectionSel) sectionSel.onchange = () => { updatePlanDistricts(); renderPlanList(); };
   const districtSel = document.getElementById('planDistrict');
   if (districtSel) districtSel.onchange = renderPlanList;
   const villageInput = document.getElementById('planVillage');
@@ -2038,7 +2120,9 @@ function updatePlanCounties() {
   const prov = State.provinces.find(p => p.id === provId);
   countySel.innerHTML = '<option value="">انتخاب شهرستان</option>' +
     (prov ? (prov.counties||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
-  // Reset district when province changes
+  // Reset section and district when province changes
+  const secSel = document.getElementById('planSection');
+  if (secSel) secSel.innerHTML = '<option value="">انتخاب بخش</option>';
   const distSel = document.getElementById('planDistrict');
   if (distSel) distSel.innerHTML = '<option value="">انتخاب دهستان</option>';
 }
@@ -2254,7 +2338,7 @@ async function submitPlanRecords() {
       const address = document.getElementById('planAddress')?.value?.trim() || '';
       // For non-done statuses, use supplementary description; for done, use address
       const desc = State.selectedPlanStatus === 'done' ? address : (supDesc || address);
-      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId, district_id: document.getElementById('planDistrict')?.value || '', expert_name: State.user?.name || '', role_id: State.user?.role || '', description: desc}});
+      const r = await api('/api/plan-records', {method:'POST', body: {plan_id: pid, village, status_category: status, field_values: values, province_id: provinceId, county_id: countyId, section_id: document.getElementById('planSection')?.value || '', district_id: document.getElementById('planDistrict')?.value || '', expert_name: State.user?.name || '', role_id: State.user?.role || '', description: desc}});
       if (r.ok) success++;
       else if (r.duplicate) errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error}`);
       else errors.push(`${State.plans.find(p=>p.id===pid)?.name}: ${r.error||'خطا'}`);

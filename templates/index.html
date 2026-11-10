@@ -129,9 +129,10 @@
 
       <!-- Geographic Location -->
       <h4 class="form-section-title">📍 موقعیت جغرافیایی</h4>
-      <div class="grid four geo-fields">
+      <div class="grid five geo-fields">
         <div><label>استان</label><select id="planProvince" required></select></div>
         <div><label>شهرستان</label><select id="planCounty" required></select></div>
+        <div><label>بخش</label><select id="planSection"><option value="">انتخاب بخش</option></select></div>
         <div><label>دهستان</label><select id="planDistrict"><option value="">انتخاب دهستان</option></select></div>
         <div><label>روستا</label><input id="planVillage" required placeholder="نام روستا"></div>
       </div>
@@ -528,14 +529,20 @@
 
     <!-- Geo -->
     <div class="card collapsible expanded admin-section" id="geoCard">
-      <div class="card-header"><h2>مدیریت استان‌ها و شهرستان‌ها</h2><span class="chevron">▼</span></div>
+      <div class="card-header"><h2>مدیریت تقسیمات کشوری</h2><span class="chevron">▼</span></div>
       <div class="card-body">
-        <div class="grid">
+        <div class="grid three">
           <div><label for="newProvince">افزودن استان</label><input id="newProvince" placeholder="نام استان"><div class="actions"><button id="addProvince">افزودن استان</button></div></div>
           <div>
             <label for="provinceForCounty">استان مربوط به شهرستان</label><select id="provinceForCounty"></select>
             <label for="newCounty" style="margin-top:8px">نام شهرستان جدید</label><input id="newCounty" placeholder="نام شهرستان">
             <div class="actions"><button id="addCounty">افزودن شهرستان</button></div>
+          </div>
+          <div>
+            <label for="provinceForSection">استان</label><select id="provinceForSection"></select>
+            <label for="countyForSection" style="margin-top:8px">شهرستان مربوط به بخش</label><select id="countyForSection"></select>
+            <label for="newSection" style="margin-top:8px">نام بخش جدید</label><input id="newSection" placeholder="نام بخش">
+            <div class="actions"><button id="addSection">افزودن بخش</button></div>
           </div>
         </div>
         <div id="geoList" style="margin-top:12px"></div>

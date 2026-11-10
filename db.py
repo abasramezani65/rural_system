@@ -207,9 +207,46 @@ def init_db():
     with open(schema_path, 'r', encoding='utf-8') as f:
         schema_sql = f.read()
     _execscript(schema_sql)
+    _run_migrations()
     _seed_defaults()
     db_info = f'PostgreSQL: {DATABASE_URL[:50]}...' if IS_POSTGRES else f'SQLite at {DB_PATH}'
     print(f'[db] initialized ({db_info})')
+
+
+def _column_exists(table, column):
+    """Check if a column exists in a table (works for both SQLite and PostgreSQL)."""
+    if IS_POSTGRES:
+        row = _fetchone(
+            "SELECT column_name FROM information_schema.columns WHERE table_name=%s AND column_name=%s",
+            (table, column)
+        )
+        return row is not None
+    else:
+        # SQLite: use PRAGMA table_info
+        rows = _fetchall(f'PRAGMA table_info({table})')
+        return any(r['name'] == column for r in rows)
+
+
+def _run_migrations():
+    """Add new columns to existing tables for backward compatibility."""
+    # geo_catalog: add section_name
+    if not _column_exists('geo_catalog', 'section_name'):
+        try:
+            _exec('ALTER TABLE geo_catalog ADD COLUMN section_name TEXT')
+        except Exception:
+            pass  # column may already exist
+    # plan_records: add section_id
+    if not _column_exists('plan_records', 'section_id'):
+        try:
+            _exec('ALTER TABLE plan_records ADD COLUMN section_id TEXT')
+        except Exception:
+            pass
+    # districts: add section_id
+    if not _column_exists('districts', 'section_id'):
+        try:
+            _exec('ALTER TABLE districts ADD COLUMN section_id TEXT')
+        except Exception:
+            pass
 
 
 def _seed_defaults():
@@ -492,6 +529,13 @@ def list_provinces():
     for p in provinces:
         counties = _fetchall('SELECT * FROM counties WHERE province_id=? ORDER BY name', (p['id'],))
         p['counties'] = rows_to_dicts(counties)
+        # Attach sections (بخش‌ها) to each county
+        for c in p['counties']:
+            sections = _fetchall('SELECT * FROM sections WHERE county_id=? ORDER BY name', (c['id'],))
+            c['sections'] = rows_to_dicts(sections)
+            # Attach districts (دهستان‌ها) to each county
+            districts = _fetchall('SELECT * FROM districts WHERE county_id=? ORDER BY name', (c['id'],))
+            c['districts'] = rows_to_dicts(districts)
     return provinces
 
 
@@ -507,6 +551,22 @@ def add_county(province_id, name):
     conn = get_conn()
     _exec('INSERT INTO counties(id, province_id, name) VALUES (?,?,?)', (cid, province_id, name))
     return cid
+
+
+def add_section(county_id, name):
+    """Add a section (بخش) to a county."""
+    sid = uid('sec')
+    _exec('INSERT INTO sections(id, county_id, name) VALUES (?,?,?)', (sid, county_id, name))
+    return sid
+
+
+def delete_section(sid):
+    _exec('DELETE FROM sections WHERE id=?', (sid,))
+
+
+def list_sections_by_county(county_id):
+    rows = _fetchall('SELECT * FROM sections WHERE county_id=? ORDER BY name', (county_id,))
+    return rows_to_dicts(rows)
 
 
 def delete_province(pid):
@@ -745,18 +805,20 @@ def list_geo_catalog():
 
 
 def add_geo_entries(entries):
-    """entries: list of dicts with keys province_name, county_name, district_name (optional), village_name."""
+    """entries: list of dicts with keys province_name, county_name, section_name (optional), district_name (optional), village_name."""
     for e in entries:
         # Check if entry already exists before inserting
         existing = _fetchone(
-            'SELECT id FROM geo_catalog WHERE province_name=? AND county_name=? AND village_name=?',
-            (e['province_name'], e['county_name'], e['village_name'])
+            'SELECT id FROM geo_catalog WHERE province_name=? AND county_name=? AND village_name=? '
+            'AND COALESCE(section_name,\'\')=? AND COALESCE(district_name,\'\')=?',
+            (e['province_name'], e['county_name'], e['village_name'],
+             e.get('section_name') or '', e.get('district_name') or '')
         )
         if not existing:
             gid = uid('geo')
             _exec(
-                'INSERT INTO geo_catalog(id, province_name, county_name, district_name, village_name) VALUES (?,?,?,?,?)',
-                (gid, e['province_name'], e['county_name'], e.get('district_name') or '', e['village_name'])
+                'INSERT INTO geo_catalog(id, province_name, county_name, section_name, district_name, village_name) VALUES (?,?,?,?,?,?)',
+                (gid, e['province_name'], e['county_name'], e.get('section_name') or '', e.get('district_name') or '', e['village_name'])
             )
 
 
@@ -1076,7 +1138,7 @@ def find_plan_record(plan_id, village, province_id='', county_id=''):
 
 
 def add_plan_record(plan_id, village, status_category, field_values=None, province_id='',
-                    county_id='', district_id='', expert_name='', role_id='', org='',
+                    county_id='', section_id='', district_id='', expert_name='', role_id='', org='',
                     service_date='', description='', created_by=''):
     """Create a new plan record. Raises if duplicate exists."""
     existing = find_plan_record(plan_id, village, province_id, county_id)
@@ -1088,10 +1150,10 @@ def add_plan_record(plan_id, village, status_category, field_values=None, provin
     import json as _json
     fv_json = _json.dumps(field_values, ensure_ascii=False) if field_values else None
     _exec(
-        'INSERT INTO plan_records(id, plan_id, province_id, county_id, district_id, village, '
+        'INSERT INTO plan_records(id, plan_id, province_id, county_id, section_id, district_id, village, '
         'status_category, field_values, expert_name, role_id, org, service_date, description, created_by) '
-        'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        (rid, plan_id, province_id or None, county_id or None, district_id or None, village,
+        'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        (rid, plan_id, province_id or None, county_id or None, section_id or None, district_id or None, village,
          status_category, fv_json, expert_name, role_id, org, service_date, description, created_by)
     )
     # Log initial status

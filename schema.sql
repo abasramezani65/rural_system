@@ -36,13 +36,25 @@ CREATE TABLE IF NOT EXISTS counties (
   UNIQUE(province_id, name)
 );
 
--- Districts (دهستان‌ها) - optional
-CREATE TABLE IF NOT EXISTS districts (
+-- Sections (بخش‌ها) - between county and district
+CREATE TABLE IF NOT EXISTS sections (
   id TEXT PRIMARY KEY,
   county_id TEXT NOT NULL,
   name TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE CASCADE
+  FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE CASCADE,
+  UNIQUE(county_id, name)
+);
+
+-- Districts (دهستان‌ها) - optional, linked to section
+CREATE TABLE IF NOT EXISTS districts (
+  id TEXT PRIMARY KEY,
+  county_id TEXT NOT NULL,
+  section_id TEXT,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE CASCADE,
+  FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE SET NULL
 );
 
 -- Users (کاربران)
@@ -129,10 +141,11 @@ CREATE TABLE IF NOT EXISTS geo_catalog (
   id TEXT PRIMARY KEY,
   province_name TEXT NOT NULL,
   county_name TEXT NOT NULL,
+  section_name TEXT,
   district_name TEXT,
   village_name TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(province_name, county_name, district_name, village_name)
+  UNIQUE(province_name, county_name, section_name, district_name, village_name)
 );
 
 -- Login announcements (پیام‌های مناسبتی روی صفحه ورود)
@@ -207,6 +220,7 @@ CREATE TABLE IF NOT EXISTS plan_records (
   plan_id         TEXT NOT NULL,
   province_id     TEXT,
   county_id       TEXT,
+  section_id      TEXT,
   district_id     TEXT,
   village         TEXT NOT NULL,
   status_category TEXT NOT NULL,

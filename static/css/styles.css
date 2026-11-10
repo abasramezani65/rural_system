@@ -1272,6 +1272,7 @@ html[data-theme="dark"] .modal-box {
 .form-section-title:not(:first-child) { margin-top: 24px; }
 
 .grid.four { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.grid.five { grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .geo-fields select, .geo-fields input {
   padding: 6px 8px;
   font-size: 12.5px;
@@ -1279,6 +1280,12 @@ html[data-theme="dark"] .modal-box {
 }
 .geo-fields label { font-size: 11.5px; margin-bottom: 2px; }
 .geo-fields > div { min-width: 0; }
+@media (max-width: 900px) {
+  .grid.five { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .grid.five { grid-template-columns: repeat(2, 1fr); }
+}
 
 .address-field {
   margin-top: 8px;

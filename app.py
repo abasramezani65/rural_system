@@ -386,6 +386,36 @@ def api_county_delete(cid):
     return jsonify({'ok': True})
 
 
+# ----- API: Sections (بخش‌ها) -----
+@app.route('/api/sections', methods=['POST'])
+def api_section_add():
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    data = request.get_json(force=True) or {}
+    county_id = data.get('county_id')
+    name = (data.get('name') or '').strip()
+    if not county_id or not name:
+        return jsonify({'error': 'شهرستان و نام بخش الزامی است.'}), 400
+    existing = DB._fetchone('SELECT id FROM sections WHERE county_id=? AND name=?', (county_id, name))
+    if existing:
+        return jsonify({'error': 'این بخش قبلاً برای این شهرستان ثبت شده است.'}), 400
+    try:
+        sid = DB.add_section(county_id, name)
+        return jsonify({'ok': True, 'id': sid})
+    except Exception as e:
+        return jsonify({'error': f'خطا در ثبت: {e}'}), 500
+
+
+@app.route('/api/sections/<sid>', methods=['DELETE'])
+def api_section_delete(sid):
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    DB.delete_section(sid)
+    return jsonify({'ok': True})
+
+
 # ----- API: Records -----
 @app.route('/api/records', methods=['GET'])
 def api_records_list():
@@ -888,6 +918,7 @@ def api_plan_record_add():
     try:
         rid = DB.add_plan_record(plan_id, village, status_category, values,
             province_id=province_id, county_id=county_id,
+            section_id=data.get('section_id', ''),
             district_id=data.get('district_id', ''),
             expert_name=data.get('expert_name', ''),
             role_id=data.get('role_id', ''),
