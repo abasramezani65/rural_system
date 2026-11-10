@@ -696,6 +696,21 @@ def api_geo_import():
     return jsonify({'ok': True, 'count': len(entries)})
 
 
+@app.route('/api/seed-geo', methods=['POST'])
+def api_seed_geo():
+    """Bulk-load Iran's administrative divisions (31 provinces, 484 counties, 1193 sections, 2777 dehestan).
+    Data source: sajaddp/list-of-cities-in-Iran (CC-BY, up to 1404)."""
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    try:
+        import seed_geo
+        summary = seed_geo.seed_all_geo(DB)
+        return jsonify({'ok': True, 'summary': summary})
+    except Exception as e:
+        return jsonify({'error': f'خطا در بارگذاری: {e}'}), 500
+
+
 # ----- API: Backup / Export -----
 @app.route('/api/export/csv', methods=['GET'])
 def api_export_csv():

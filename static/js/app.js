@@ -1610,6 +1610,36 @@ async function init() {
     } catch (e) { toast(e.message, 'error'); }
   });
 
+  // Bulk-load Iran's administrative divisions
+  document.getElementById('seedGeoBtn')?.addEventListener('click', async () => {
+    if (!confirm('تقسیمات کشوری ایران (۳۱ استان، ۴۸۴ شهرستان، ۱۱۹۳ بخش، ۲۷۷۷ دهستان) بارگذاری شود؟\nاین عملیات ممکن است چند ثانیه طول بکشد. رکوردهای تکراری نادیده گرفته می‌شوند.')) return;
+    const btn = document.getElementById('seedGeoBtn');
+    const origText = btn.textContent;
+    btn.textContent = '⏳ در حال بارگذاری...';
+    btn.disabled = true;
+    try {
+      const r = await api('/api/seed-geo', { method: 'POST' });
+      if (r.ok) {
+        const s = r.summary;
+        toast(`✅ بارگذاری شد: ${s.provinces} استان، ${s.counties} شهرستان، ${s.sections} بخش، ${s.dehestan} دهستان (${s.skipped} تکراری)`, 'success');
+        // Reload state to get the new data
+        const state = await api('/api/state');
+        State.provinces = state.provinces || [];
+        renderGeoList();
+        renderBaseSelects();
+        renderFilterSelects();
+        renderUserCountySelects();
+      } else {
+        toast(r.error || 'خطا در بارگذاری', 'error');
+      }
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  });
+
   // Announcements
   document.getElementById('addAnnouncement').addEventListener('click', async () => {
     const text = document.getElementById('newAnnouncement').value.trim();
