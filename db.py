@@ -353,6 +353,17 @@ def list_users():
     return rows_to_dicts(rows)
 
 
+def list_users_by_province(province_id):
+    """List users belonging to a specific province (for provincial admin scope)."""
+    conn = get_conn()
+    rows = _fetchall(
+        'SELECT id, name, username, role, province_id, county_id, active, created_at '
+        'FROM users WHERE province_id=? ORDER BY created_at',
+        (province_id,)
+    )
+    return rows_to_dicts(rows)
+
+
 def get_user_by_username(username):
     conn = get_conn()
     row = _fetchone('SELECT * FROM users WHERE username=?', (username,))

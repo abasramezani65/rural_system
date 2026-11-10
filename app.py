@@ -149,7 +149,7 @@ def api_state():
         'coreFields': DB.get_core_fields(),
         'settings': DB.get_all_settings(),
         'geoCatalog': DB.list_geo_catalog()[:200],
-        'users': DB.list_users() if user['role'] == 'national' else [],
+        'users': DB.list_users() if user['role'] == 'national' else (DB.list_users_by_province(user['province_id']) if user['role'] == 'provincial' else []),
         'loginAnnouncements': DB.list_login_announcements(active_only=True),
         'loginBanners': DB.list_login_banners(active_only=True),
         'loginAnnouncementsAll': DB.list_login_announcements() if user['role'] == 'national' else [],
@@ -526,7 +526,7 @@ def api_core_fields_save():
 @app.route('/api/users', methods=['POST'])
 def api_user_save():
     user = require_auth()
-    if not user or user['role'] != 'national':
+    if not user or user['role'] not in ('national', 'provincial'):
         return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
     data = request.get_json(force=True) or {}
     name = (data.get('name') or '').strip()
@@ -543,6 +543,20 @@ def api_user_save():
     generated_password = None
     if not name or not phone:
         return jsonify({'error': 'نام و شماره تلفن همراه الزامی است.'}), 400
+    # Provincial admin scoping: can only manage county users within own province
+    if user['role'] == 'provincial':
+        role = 'county'  # force county role
+        province_id = user['province_id']  # lock to own province
+        # If editing, ensure target is a county user in this province
+        if user_id:
+            target = DB.get_user(user_id)
+            if not target:
+                return jsonify({'error': 'کاربر یافت نشد.'}), 404
+            if target['role'] != 'county' or target.get('province_id') != user['province_id']:
+                return jsonify({'error': 'شما فقط می‌توانید کاربران شهرستانی استان خود را ویرایش کنید.'}), 403
+        # Prevent editing the default admin
+        if user_id == 'u_admin_default':
+            return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
     # Check username uniqueness
     existing = DB.get_user_by_username(phone)
     if existing and existing['id'] != user_id:
@@ -585,9 +599,14 @@ def api_change_password():
 @app.route('/api/users/<uid>/toggle', methods=['POST'])
 def api_user_toggle(uid):
     user = require_auth()
-    if not user or user['role'] != 'national':
+    if not user or user['role'] not in ('national', 'provincial'):
         return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
     data = request.get_json(force=True) or {}
+    # Provincial scoping: only county users in own province
+    if user['role'] == 'provincial':
+        target = DB.get_user(uid)
+        if not target or target['role'] != 'county' or target.get('province_id') != user['province_id']:
+            return jsonify({'error': 'شما فقط به کاربران شهرستانی استان خود دسترسی دارید.'}), 403
     DB.toggle_user(uid, data.get('active', True))
     return jsonify({'ok': True})
 
@@ -595,12 +614,17 @@ def api_user_toggle(uid):
 @app.route('/api/users/<uid>', methods=['DELETE'])
 def api_user_delete(uid):
     user = require_auth()
-    if not user or user['role'] != 'national':
+    if not user or user['role'] not in ('national', 'provincial'):
         return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
     if uid == 'u_admin_default':
         return jsonify({'error': 'حذف حساب مدیر اصلی ممکن نیست.'}), 400
     if uid == user['id']:
         return jsonify({'error': 'نمی‌توانید حساب خودتان را حذف کنید.'}), 400
+    # Provincial scoping: only county users in own province
+    if user['role'] == 'provincial':
+        target = DB.get_user(uid)
+        if not target or target['role'] != 'county' or target.get('province_id') != user['province_id']:
+            return jsonify({'error': 'شما فقط می‌توانید کاربران شهرستانی استان خود را حذف کنید.'}), 403
     ok = DB.delete_user(uid)
     if not ok:
         return jsonify({'error': 'حذف این کاربر ممکن نیست.'}), 400
@@ -609,13 +633,17 @@ def api_user_delete(uid):
 
 @app.route('/api/users/<uid>/reset-password', methods=['POST'])
 def api_user_reset_password(uid):
-    """Reset a user's password to the fixed default 123456789 (national admin only)."""
+    """Reset a user's password to the fixed default 123456789 (national/provincial admin)."""
     user = require_auth()
-    if not user or user['role'] != 'national':
+    if not user or user['role'] not in ('national', 'provincial'):
         return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
     target = DB.get_user(uid)
     if not target:
         return jsonify({'error': 'کاربر یافت نشد.'}), 404
+    # Provincial scoping: only county users in own province
+    if user['role'] == 'provincial':
+        if target['role'] != 'county' or target.get('province_id') != user['province_id']:
+            return jsonify({'error': 'شما فقط می‌توانید رمز کاربران شهرستانی استان خود را ریست کنید.'}), 403
     default_pwd = '123456789'
     DB.update_user(uid, target['name'], target['username'], default_pwd,
                    target['role'], target.get('province_id') or '', target.get('county_id') or '',

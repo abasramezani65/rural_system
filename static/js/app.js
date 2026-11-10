@@ -310,9 +310,9 @@ function showApp() {
     initChangePassword();
   };
 
-  // Admin tab visibility
+  // Admin tab visibility — shown for national and provincial admins
   const adminTab = document.getElementById('adminTab');
-  adminTab.hidden = State.user?.role !== 'national';
+  adminTab.hidden = !['national', 'provincial'].includes(State.user?.role);
 
   // Bind collapsible cards
   document.querySelectorAll('.card.collapsible .card-header').forEach(h => {
@@ -322,6 +322,8 @@ function showApp() {
   });
 
   initUserSearch();
+  applyRoleBasedMenu();
+  initProvincialPanel();
   renderAll();
 }
 
@@ -338,6 +340,7 @@ function renderAll() {
   renderFilterServices();
   renderFilterSelects();
   renderUsersTable();
+  renderProvincialUsersTable();
   renderCustomFields();
   renderRoles();
   renderServicesAdmin();
@@ -1088,6 +1091,178 @@ function resetUserForm() {
   document.getElementById('saveUser').textContent = 'افزودن کاربر';
   const info = document.getElementById('generatedPasswordInfo');
   if (info) info.style.display = 'none';
+}
+
+// ===== PROVINCIAL ADMIN PANEL (پنل ادمین استانی) =====
+function initProvincialPanel() {
+  if (State.user?.role !== 'provincial') return;
+  const provId = State.user.province_id;
+  const prov = (State.provinces || []).find(p => p.id === provId);
+  const provNameEl = document.getElementById('provAccessProvinceName');
+  if (provNameEl && prov) provNameEl.textContent = prov.name || '—';
+
+  // Populate county dropdown (form + search) with counties of this province only
+  const counties = prov?.counties || [];
+  const formCnty = document.getElementById('provUserCounty');
+  if (formCnty) {
+    formCnty.innerHTML = '<option value="">انتخاب شهرستان</option>' +
+      counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  }
+  const searchCnty = document.getElementById('provUserSearchCounty');
+  if (searchCnty) {
+    searchCnty.innerHTML = '<option value="">همه</option>' +
+      counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  }
+
+  // Live search bindings
+  const nameInput = document.getElementById('provUserSearchName');
+  const cntySel = document.getElementById('provUserSearchCounty');
+  const clearBtn = document.getElementById('provUserSearchClear');
+  if (nameInput) nameInput.oninput = renderProvincialUsersTable;
+  if (cntySel) cntySel.onchange = renderProvincialUsersTable;
+  if (clearBtn) clearBtn.onclick = () => {
+    if (nameInput) nameInput.value = '';
+    if (cntySel) cntySel.value = '';
+    renderProvincialUsersTable();
+  };
+
+  // Save button
+  const saveBtn = document.getElementById('saveProvUser');
+  if (saveBtn) saveBtn.onclick = saveProvincialUser;
+  const cancelBtn = document.getElementById('cancelProvUserEdit');
+  if (cancelBtn) cancelBtn.onclick = resetProvincialUserForm;
+}
+
+function renderProvincialUsersTable() {
+  const el = document.getElementById('provUsersTable');
+  if (!el) return;
+  // Only render for provincial admins
+  if (State.user?.role !== 'provincial') { el.innerHTML = ''; return; }
+  // Only county users in this province
+  const provId = State.user.province_id;
+  let users = (State.users || []).filter(u => u.role === 'county' && u.province_id === provId);
+  // Read search filters
+  const nameQ = (document.getElementById('provUserSearchName')?.value || '').trim().toLowerCase();
+  const cntyQ = document.getElementById('provUserSearchCounty')?.value || '';
+  const normDigits = s => String(s || '').replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  let filtered = users.filter(u => {
+    if (nameQ) {
+      const uname = (u.name || '').toLowerCase();
+      const uphone = String(u.username || '').toLowerCase();
+      const q = normDigits(nameQ);
+      const matchName = uname.includes(nameQ);
+      const matchPhone = uphone.includes(q) || uphone.includes(nameQ);
+      if (!matchName && !matchPhone) return false;
+    }
+    if (cntyQ && u.county_id !== cntyQ) return false;
+    return true;
+  });
+  const prov = (State.provinces || []).find(p => p.id === provId);
+  let html = '';
+  if (nameQ || cntyQ) {
+    html += `<div class="hint" style="margin-bottom:8px">نمایش ${filtered.length} از ${users.length} کاربر شهرستانی</div>`;
+  }
+  if (!filtered.length) {
+    html += '<div class="empty">کاربری مطابق جستجو یافت نشد. برای افزودن، از فرم بالا استفاده کنید.</div>';
+  } else {
+    html += '<table><thead><tr><th>نام</th><th>شماره تلفن</th><th>شهرستان</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
+      filtered.map(u => {
+        const cnty = prov?.counties.find(c => c.id === u.county_id);
+        return `<tr>
+          <td>${esc(u.name)}</td>
+          <td dir="ltr">${esc(u.username)}</td>
+          <td>${esc(cnty ? cnty.name : '—')}</td>
+          <td>${u.active ? 'فعال' : 'غیرفعال'}</td>
+          <td>
+            <button class="small secondary" data-pedit="${u.id}">ویرایش</button>
+            <button class="small secondary" data-ptoggle="${u.id}" data-active="${u.active ? 0 : 1}">${u.active ? 'غیرفعال' : 'فعال'}</button>
+            <button class="small secondary" data-preset="${u.id}" title="رمز به 123456789 تغییر می‌کند">🔑 ریست رمز</button>
+            ${u.id === 'u_admin_default' ? '' : `<button class="small danger" data-pdel="${u.id}">حذف</button>`}
+          </td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-pedit]').forEach(b => b.onclick = () => editProvincialUser(b.dataset.pedit));
+  el.querySelectorAll('[data-ptoggle]').forEach(b => b.onclick = async () => {
+    try {
+      await api(`/api/users/${b.dataset.ptoggle}/toggle`, { method: 'POST', body: { active: b.dataset.active === '1' } });
+      const u = State.users.find(x => x.id === b.dataset.ptoggle);
+      if (u) u.active = b.dataset.active === '1';
+      renderProvincialUsersTable();
+      toast('وضعیت کاربر به‌روزرسانی شد.');
+    } catch (e) { toast(e.message, 'error'); }
+  });
+  el.querySelectorAll('[data-preset]').forEach(b => b.onclick = async () => {
+    const u = State.users.find(x => x.id === b.dataset.preset);
+    if (!confirm(`رمز عبور «${u ? u.name : 'این کاربر'}» به 123456789 تغییر یابد؟`)) return;
+    try {
+      await api(`/api/users/${b.dataset.preset}/reset-password`, { method: 'POST' });
+      toast('✅ رمز کاربر به 123456789 تغییر یافت.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  });
+  el.querySelectorAll('[data-pdel]').forEach(b => b.onclick = async () => {
+    if (!confirm('کاربر حذف شود؟')) return;
+    try {
+      await api(`/api/users/${b.dataset.pdel}`, { method: 'DELETE' });
+      State.users = State.users.filter(u => u.id !== b.dataset.pdel);
+      renderProvincialUsersTable();
+      toast('کاربر حذف شد.');
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+
+function editProvincialUser(id) {
+  const u = State.users.find(x => x.id === id);
+  if (!u) return;
+  State.editingProvUserId = id;
+  document.getElementById('provUserFullName').value = u.name;
+  document.getElementById('provUserPhone').value = u.username;
+  document.getElementById('provUserCounty').value = u.county_id || '';
+  document.getElementById('saveProvUser').textContent = 'به‌روزرسانی کاربر';
+}
+
+function resetProvincialUserForm() {
+  State.editingProvUserId = null;
+  document.getElementById('provUserFullName').value = '';
+  document.getElementById('provUserPhone').value = '';
+  document.getElementById('provUserCounty').value = '';
+  document.getElementById('saveProvUser').textContent = 'افزودن کاربر شهرستانی';
+  const info = document.getElementById('provGeneratedPasswordInfo');
+  if (info) info.style.display = 'none';
+}
+
+async function saveProvincialUser() {
+  const data = {
+    id: State.editingProvUserId,
+    name: document.getElementById('provUserFullName').value.trim(),
+    phone: document.getElementById('provUserPhone').value.trim(),
+    role: 'county',
+    province_id: State.user.province_id,
+    county_id: document.getElementById('provUserCounty').value || '',
+  };
+  if (!data.name || !data.phone) { toast('نام و شماره تلفن همراه الزامی است.', 'error'); return; }
+  try {
+    const resp = await api('/api/users', { method: 'POST', body: data });
+    if (resp.generated_password) {
+      const info = document.getElementById('provGeneratedPasswordInfo');
+      if (info) {
+        info.style.display = '';
+        info.innerHTML = `<b>✅ کاربر شهرستانی ایجاد شد!</b><br>
+          نام کاربری (شماره تلفن): <b dir="ltr">${esc(resp.username)}</b><br>
+          رمز عبور تولیدشده: <b dir="ltr" style="font-size:18px;color:var(--green)">${esc(resp.generated_password)}</b><br>
+          <span class="hint">این رمز را به کاربر اطلاع دهید. کاربر می‌تواند بعد از ورود آن را تغییر دهد.</span>`;
+      }
+      toast(`رمز تولیدشده: ${resp.generated_password}`, 'success');
+    } else {
+      toast('کاربر به‌روزرسانی شد.', 'success');
+    }
+    // Refresh users from server
+    const state = await api('/api/state');
+    State.users = state.users || [];
+    renderProvincialUsersTable();
+    resetProvincialUserForm();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 // ----- Login design rendering -----
@@ -2184,6 +2359,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Filter admin menu items by role (national vs provincial) and set default active section
+function applyRoleBasedMenu() {
+  const role = State.user?.role;
+  if (!role) return;
+  const menuItems = document.querySelectorAll('.admin-menu-item');
+  let firstVisible = null;
+  menuItems.forEach(item => {
+    const roles = (item.dataset.roles || '').split(',').map(s => s.trim()).filter(Boolean);
+    const visible = roles.length === 0 || roles.includes(role);
+    item.style.display = visible ? '' : 'none';
+    if (visible && !firstVisible) firstVisible = item;
+  });
+  // If the currently-active menu item is not visible for this role, switch to first visible
+  const activeMenu = document.querySelector('.admin-menu-item.active');
+  if (!activeMenu || activeMenu.style.display === 'none') {
+    menuItems.forEach(m => m.classList.remove('active'));
+    if (firstVisible) {
+      firstVisible.classList.add('active');
+      const targetId = firstVisible.dataset.adminSection;
+      document.querySelectorAll('.admin-section').forEach(sec => {
+        sec.classList.toggle('active-section', sec.id === targetId);
+      });
+    }
+  }
+}
 
 // ===== PLAN DASHBOARD (داشبورد طرح‌محور) =====
 let dashCharts = {};
