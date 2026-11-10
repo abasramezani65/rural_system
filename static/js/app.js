@@ -455,9 +455,11 @@ function fillCountySelect() {
 
 function renderFilterSelects() {
   const fp = document.getElementById('filterProvince');
+  if (!fp) return;
   fp.innerHTML = '<option value="">همه استان‌ها</option>' +
     State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   const fc = document.getElementById('filterCounty');
+  if (!fc) return;
   const pid = fp.value;
   const prov = State.provinces.find(p => p.id === pid);
   fc.innerHTML = '<option value="">همه شهرستان‌ها</option>' +
@@ -466,6 +468,7 @@ function renderFilterSelects() {
 
 function renderFilterServices() {
   const el = document.getElementById('filterServices');
+  if (!el) return;
   el.innerHTML = State.services.filter(s => s.active).map(s =>
     `<label class="check"><input type="checkbox" value="${s.id}"> ${esc(s.name)}</label>`
   ).join('') || '<div class="empty">خدمتی تعریف نشده</div>';
@@ -1209,6 +1212,20 @@ async function init() {
     } catch (e) { toast(e.message, 'error'); }
   });
   document.getElementById('cancelUserEdit')?.addEventListener('click', resetUserForm);
+
+  // Add role button
+  document.getElementById('addRoleBtn')?.addEventListener('click', async () => {
+    const name = document.getElementById('newRoleName').value.trim();
+    if (!name) { toast('نام سمت الزامی است.', 'error'); return; }
+    try {
+      const resp = await api('/api/roles', { method: 'POST', body: { name } });
+      State.roles.push({ id: resp.id, name, active: 1 });
+      renderRoles();
+      renderBaseSelects();
+      document.getElementById('newRoleName').value = '';
+      toast('سمت اضافه شد.');
+    } catch (e) { toast(e.message, 'error'); }
+  });
 
   // Provinces / counties (roles & services removed)
   document.getElementById('addProvince')?.addEventListener('click', async () => {
