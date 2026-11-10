@@ -1094,6 +1094,20 @@ def api_plan_report():
 # rather than `python app.py`. Safe to call multiple times (uses CREATE TABLE IF NOT EXISTS).
 DB.init_db()
 
+# Auto-seed Iran's administrative divisions if the provinces table is nearly empty.
+# This runs once on startup — no button click needed. Idempotent (skips existing).
+try:
+    prov_count = DB._fetchval('SELECT COUNT(*) FROM provinces')
+    if prov_count is not None and prov_count <= 1:
+        import seed_geo
+        summary = seed_geo.seed_all_geo(DB)
+        if summary['provinces'] > 0:
+            print(f'[seed] Auto-loaded geo data: {summary["provinces"]} provinces, '
+                  f'{summary["counties"]} counties, {summary["sections"]} sections, '
+                  f'{summary["dehestan"]} dehestan')
+except Exception as e:
+    print(f'[seed] Auto-seed skipped: {e}')
+
 
 def main():
     port = int(os.environ.get('PORT', 5050))
