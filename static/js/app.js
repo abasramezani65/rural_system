@@ -491,10 +491,16 @@ function fillCountyForSection() {
 }
 
 // Update section dropdown in plan registration form when county changes
-function updatePlanSections() {
+async function updatePlanSections() {
   const countyId = document.getElementById('planCounty')?.value;
   const secSel = document.getElementById('planSection');
   if (!secSel) return;
+  secSel.innerHTML = '<option value="">انتخاب بخش</option>';
+  // Reset district dropdown
+  const distSel = document.getElementById('planDistrict');
+  if (distSel) distSel.innerHTML = '<option value="">انتخاب دهستان</option>';
+  if (!countyId) return;
+  // Try local cache first (from State.provinces), then fetch from API
   let sections = [];
   for (const p of State.provinces) {
     for (const c of (p.counties || [])) {
@@ -504,11 +510,20 @@ function updatePlanSections() {
       }
     }
   }
+  // If no local sections, fetch from API (on-demand loading for large datasets)
+  if (!sections.length) {
+    try {
+      sections = await api(`/api/sections?county_id=${countyId}`);
+      // Cache the result
+      for (const p of State.provinces) {
+        for (const c of (p.counties || [])) {
+          if (c.id === countyId) { c.sections = sections; break; }
+        }
+      }
+    } catch(e) { console.error('Failed to load sections:', e); }
+  }
   secSel.innerHTML = '<option value="">انتخاب بخش</option>' +
     sections.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-  // Reset district dropdown
-  const distSel = document.getElementById('planDistrict');
-  if (distSel) distSel.innerHTML = '<option value="">انتخاب دهستان</option>';
 }
 
 function renderFilterSelects() {
@@ -854,14 +869,9 @@ function renderGeoList() {
   el.innerHTML = State.provinces.map(p => `<div style="margin-bottom:10px;padding:10px;background:var(--bg-alt);border-radius:8px">
     <b>${esc(p.name)}</b>
     <button class="small danger" style="float:left" data-del-prov="${p.id}">حذف استان</button>
-    <div style="margin-top:6px">${p.counties.length ? p.counties.map(c => {
-      const sectionsHtml = (c.sections && c.sections.length)
-        ? '<div style="margin-top:4px;padding-right:12px">' + c.sections.map(s =>
-            `<span class="badge" style="background:var(--blue-soft,#e8eef8);color:var(--blue,#3156a5)">بخش ${esc(s.name)} <button data-del-section="${s.id}" style="background:none;border:0;color:inherit;cursor:pointer;padding:0 2px">×</button></span>`
-          ).join(' ') + '</div>'
-        : '';
-      return `<span class="badge">${esc(c.name)} <button data-del-county="${c.id}" style="background:none;border:0;color:inherit;cursor:pointer;padding:0 2px">×</button></span>` + sectionsHtml;
-    }).join(' ') : '<span class="hint">شهرستانی ثبت نشده</span>'}</div>
+    <div style="margin-top:6px">${p.counties.length ? p.counties.map(c =>
+      `<span class="badge">${esc(c.name)} <button data-del-county="${c.id}" style="background:none;border:0;color:inherit;cursor:pointer;padding:0 2px">×</button></span>`
+    ).join(' ') : '<span class="hint">شهرستانی ثبت نشده</span>'}</div>
   </div>`).join('');
   el.querySelectorAll('[data-del-prov]').forEach(b => b.onclick = async () => {
     if (!confirm('استان و تمام شهرستان‌ها/بخش‌های آن حذف شود؟')) return;
@@ -2975,17 +2985,31 @@ function initRecordsFilters() {
     const secSel = document.getElementById('recSectionFilter');
     if (secSel) secSel.innerHTML = '<option value="">همه بخش‌ها</option>';
   };
-  // County change → populate sections
+  // County change → populate sections (on-demand from API)
   const cntySel = document.getElementById('recCountyFilter');
-  if (cntySel) cntySel.onchange = () => {
+  if (cntySel) cntySel.onchange = async () => {
     const cid = cntySel.value;
     const secSel = document.getElementById('recSectionFilter');
     if (!secSel) return;
+    secSel.innerHTML = '<option value="">همه بخش‌ها</option>';
+    if (!cid) return;
+    // Try local cache first
     let sections = [];
     for (const p of State.provinces) {
       for (const c of (p.counties || [])) {
         if (c.id === cid) { sections = c.sections || []; break; }
       }
+    }
+    // Fetch from API if not cached
+    if (!sections.length) {
+      try {
+        sections = await api(`/api/sections?county_id=${cid}`);
+        for (const p of State.provinces) {
+          for (const c of (p.counties || [])) {
+            if (c.id === cid) { c.sections = sections; break; }
+          }
+        }
+      } catch(e) { console.error('Failed to load sections:', e); }
     }
     secSel.innerHTML = '<option value="">همه بخش‌ها</option>' +
       sections.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');

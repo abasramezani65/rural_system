@@ -529,13 +529,12 @@ def list_provinces():
     for p in provinces:
         counties = _fetchall('SELECT * FROM counties WHERE province_id=? ORDER BY name', (p['id'],))
         p['counties'] = rows_to_dicts(counties)
-        # Attach sections (بخش‌ها) to each county
+        # Note: sections and districts are NOT loaded here for performance.
+        # With 1193 sections + 2777 districts, loading all at once causes ~1000 SQL queries.
+        # Sections are loaded on-demand via /api/sections?county_id=xxx
         for c in p['counties']:
-            sections = _fetchall('SELECT * FROM sections WHERE county_id=? ORDER BY name', (c['id'],))
-            c['sections'] = rows_to_dicts(sections)
-            # Attach districts (دهستان‌ها) to each county
-            districts = _fetchall('SELECT * FROM districts WHERE county_id=? ORDER BY name', (c['id'],))
-            c['districts'] = rows_to_dicts(districts)
+            c['sections'] = []
+            c['districts'] = []
     return provinces
 
 

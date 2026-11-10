@@ -387,6 +387,15 @@ def api_county_delete(cid):
 
 
 # ----- API: Sections (بخش‌ها) -----
+@app.route('/api/sections', methods=['GET'])
+def api_sections_list():
+    """List sections for a given county (on-demand loading)."""
+    county_id = request.args.get('county_id')
+    if not county_id:
+        return jsonify([])
+    return jsonify(DB.list_sections_by_county(county_id))
+
+
 @app.route('/api/sections', methods=['POST'])
 def api_section_add():
     user = require_auth()
