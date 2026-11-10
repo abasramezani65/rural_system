@@ -354,16 +354,13 @@ function renderBranding() {
   document.getElementById('appTitle').textContent = s.title || 'سامانه پایش خدمات روستایی';
   document.getElementById('appSubtitle').textContent = s.subtitle || '';
   document.title = s.title || 'سامانه پایش خدمات روستایی';
-  // Logo
+  // Logo - falls back to local header-logo.jpg when no URL is set in settings
   const logoSlot = document.getElementById('logoSlot');
   if (logoSlot) {
-    if (s.logo) {
-      logoSlot.innerHTML = `<img src="${esc(s.logo)}" alt="لوگو" style="max-width:48px;max-height:48px;border-radius:6px">`;
-      logoSlot.style.border = 'none';
-      logoSlot.style.background = 'transparent';
-    } else {
-      logoSlot.innerHTML = '<span>محل درج لوگو</span>';
-    }
+    const logoSrc = s.logo || '/static/img/header-logo.jpg';
+    logoSlot.innerHTML = `<img src="${esc(logoSrc)}" alt="لوگو" style="max-width:48px;max-height:48px;border-radius:6px">`;
+    logoSlot.style.border = 'none';
+    logoSlot.style.background = 'transparent';
   }
   // Header background
   const header = document.getElementById('mainHeader');
