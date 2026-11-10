@@ -255,9 +255,9 @@ async function loadState() {
   if (document.getElementById('plansAdminList')) renderPlansAdmin();
   if (document.getElementById('planListContainer')) renderPlanRegistration();
   if (document.getElementById('reportPlanFilter')) populatePlanReportFilter();
-  // Init and render dashboard
+  // Init and render dashboard (only when authenticated)
   initDashboard();
-  renderDashboard();
+  if (data.authenticated) renderDashboard();
   // Init records tab filters
   initRecordsFilters();
   // Update message badge
@@ -660,6 +660,10 @@ function renderSummary() {
 }
 
 function renderCharts() {
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js بارگذاری نشده است. نمودارها نمایش داده نمی‌شوند.');
+    return;
+  }
   const recs = scopedRecords();
   // Service distribution
   const svcCounts = {};
@@ -2546,6 +2550,12 @@ async function renderDashboard() {
 }
 
 function renderDashboardCharts(records) {
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js بارگذاری نشده است. نمودارها نمایش داده نمی‌شوند.');
+    const barTitle = document.getElementById('chartBarTitle');
+    if (barTitle) barTitle.textContent = '⚠️ نمودارها در دسترس نیست (کتابخانه Chart.js بارگذاری نشده)';
+    return;
+  }
   // Destroy old charts
   Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
   dashCharts = {};
@@ -2645,6 +2655,10 @@ function exportDashboardCSV() {
 }
 
 async function exportDashboardExcel() {
+  if (typeof XLSX === 'undefined') {
+    toast('کتابخانه خروجی Excel بارگذاری نشده است.', 'error');
+    return;
+  }
   // Fetch filtered data
   const params = new URLSearchParams();
   const planIds = getMsValues('dashPlanMs');
