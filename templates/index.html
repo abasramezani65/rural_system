@@ -414,6 +414,12 @@
           <button id="saveUser">افزودن کاربر</button>
           <button type="button" class="secondary" id="cancelUserEdit">پاک‌کردن فرم</button>
         </div>
+        <div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;align-items:end" class="users-search-bar">
+          <div style="flex:1;min-width:140px"><label for="userSearchName">🔍 جستجوی نام یا شماره</label><input id="userSearchName" placeholder="مثلاً: علی یا ۰۹۱۲..."></div>
+          <div style="flex:1;min-width:140px"><label for="userSearchProvince">استان</label><select id="userSearchProvince"><option value="">همه</option></select></div>
+          <div style="flex:1;min-width:140px"><label for="userSearchCounty">شهرستان</label><select id="userSearchCounty"><option value="">همه</option></select></div>
+          <div><button type="button" class="secondary" id="userSearchClear">پاک‌کردن فیلتر</button></div>
+        </div>
         <div id="usersTable" style="margin-top:14px"></div>
 
         <hr style="margin:18px 0;border:none;border-top:1px dashed rgba(127,127,127,.3)">

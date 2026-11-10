@@ -607,6 +607,22 @@ def api_user_delete(uid):
     return jsonify({'ok': True})
 
 
+@app.route('/api/users/<uid>/reset-password', methods=['POST'])
+def api_user_reset_password(uid):
+    """Reset a user's password to the fixed default 123456789 (national admin only)."""
+    user = require_auth()
+    if not user or user['role'] != 'national':
+        return jsonify({'error': 'دسترسی غیرمجاز.'}), 403
+    target = DB.get_user(uid)
+    if not target:
+        return jsonify({'error': 'کاربر یافت نشد.'}), 404
+    default_pwd = '123456789'
+    DB.update_user(uid, target['name'], target['username'], default_pwd,
+                   target['role'], target.get('province_id') or '', target.get('county_id') or '',
+                   target.get('active', 1))
+    return jsonify({'ok': True, 'new_password': default_pwd})
+
+
 # ----- API: Geo catalog -----
 @app.route('/api/geo/import', methods=['POST'])
 def api_geo_import():

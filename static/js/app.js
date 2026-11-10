@@ -321,6 +321,7 @@ function showApp() {
     h.addEventListener('click', () => h.parentElement.classList.toggle('collapsed'));
   });
 
+  initUserSearch();
   renderAll();
 }
 
@@ -952,13 +953,43 @@ function fillUserCounties() {
 
 function renderUsersTable() {
   const el = document.getElementById('usersTable');
+  if (!el) return;
   if (!State.users.length) { el.innerHTML = '<div class="empty">کاربری ثبت نشده</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>نام</th><th>نام کاربری</th><th>سطح</th><th>محدوده</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
-    State.users.map(u => {
-      const prov = State.provinces.find(p => p.id === u.province_id);
-      const cnty = prov?.counties.find(c => c.id === u.county_id);
-      const scope = u.role === 'national' ? 'کشوری' : (prov ? prov.name + (cnty ? ' / ' + cnty.name : '') : '—');
-      return `<tr>
+  // --- Read search filters ---
+  const nameQ = (document.getElementById('userSearchName')?.value || '').trim().toLowerCase();
+  const provQ = document.getElementById('userSearchProvince')?.value || '';
+  const cntyQ = document.getElementById('userSearchCounty')?.value || '';
+  // Normalize Persian digits to Latin for phone search
+  const normDigits = s => String(s || '').replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  let filtered = State.users.filter(u => {
+    if (nameQ) {
+      const uname = (u.name || '').toLowerCase();
+      const uphone = String(u.username || '').toLowerCase();
+      const q = normDigits(nameQ);
+      const matchName = uname.includes(nameQ);
+      const matchPhone = uphone.includes(q) || uphone.includes(nameQ);
+      if (!matchName && !matchPhone) return false;
+    }
+    if (provQ && u.province_id !== provQ) return false;
+    if (cntyQ && u.county_id !== cntyQ) return false;
+    return true;
+  });
+  const total = State.users.length;
+  const shown = filtered.length;
+  const filterActive = !!(nameQ || provQ || cntyQ);
+  let html = '';
+  if (filterActive) {
+    html += `<div class="hint" style="margin-bottom:8px">نمایش ${shown} از ${total} کاربر</div>`;
+  }
+  if (!filtered.length) {
+    html += '<div class="empty">کاربری مطابق جستجو یافت نشد</div>';
+  } else {
+    html += '<table><thead><tr><th>نام</th><th>نام کاربری</th><th>سطح</th><th>محدوده</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
+      filtered.map(u => {
+        const prov = State.provinces.find(p => p.id === u.province_id);
+        const cnty = prov?.counties.find(c => c.id === u.county_id);
+        const scope = u.role === 'national' ? 'کشوری' : (prov ? prov.name + (cnty ? ' / ' + cnty.name : '') : '—');
+        return `<tr>
         <td>${esc(u.name)}</td>
         <td>${esc(u.username)}</td>
         <td>${roleLabel(u.role)}</td>
@@ -967,10 +998,13 @@ function renderUsersTable() {
         <td>
           <button class="small secondary" data-edit-user="${u.id}">ویرایش</button>
           <button class="small secondary" data-toggle-user="${u.id}" data-active="${u.active ? 0 : 1}">${u.active ? 'غیرفعال' : 'فعال'}</button>
+          <button class="small secondary" data-reset-pwd="${u.id}" title="رمز به 123456789 تغییر می‌کند">🔑 ریست رمز</button>
           ${u.id === 'u_admin_default' ? '' : `<button class="small danger" data-del-user="${u.id}">حذف</button>`}
         </td>
       </tr>`;
-    }).join('') + '</tbody></table>';
+      }).join('') + '</tbody></table>';
+  }
+  el.innerHTML = html;
   el.querySelectorAll('[data-edit-user]').forEach(b => b.onclick = () => editUser(b.dataset.editUser));
   el.querySelectorAll('[data-toggle-user]').forEach(b => b.onclick = async () => {
     try {
@@ -978,6 +1012,14 @@ function renderUsersTable() {
       const u = State.users.find(x => x.id === b.dataset.toggleUser);
       if (u) u.active = b.dataset.active === '1';
       renderUsersTable();
+    } catch (e) { toast(e.message, 'error'); }
+  });
+  el.querySelectorAll('[data-reset-pwd]').forEach(b => b.onclick = async () => {
+    const u = State.users.find(x => x.id === b.dataset.resetPwd);
+    if (!confirm(`رمز عبور «${u ? u.name : 'این کاربر'}» به 123456789 تغییر یابد؟`)) return;
+    try {
+      await api(`/api/users/${b.dataset.resetPwd}/reset-password`, { method: 'POST' });
+      toast('✅ رمز کاربر به 123456789 تغییر یافت.', 'success');
     } catch (e) { toast(e.message, 'error'); }
   });
   el.querySelectorAll('[data-del-user]').forEach(b => b.onclick = async () => {
@@ -989,6 +1031,37 @@ function renderUsersTable() {
       toast('کاربر حذف شد.');
     } catch (e) { toast(e.message, 'error'); }
   });
+}
+
+// Populate user-search dropdowns and bind live filter events
+function initUserSearch() {
+  const nameInput = document.getElementById('userSearchName');
+  const provSel = document.getElementById('userSearchProvince');
+  const cntySel = document.getElementById('userSearchCounty');
+  const clearBtn = document.getElementById('userSearchClear');
+  if (!nameInput && !provSel) return;
+  const refreshCounties = () => {
+    if (!cntySel) return;
+    const provId = provSel ? provSel.value : '';
+    const prov = State.provinces.find(p => p.id === provId);
+    const prev = cntySel.value;
+    cntySel.innerHTML = '<option value="">همه</option>' +
+      (prov ? prov.counties.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '');
+    if (prev && prov && prov.counties.some(c => c.id === prev)) cntySel.value = prev; else cntySel.value = '';
+  };
+  if (provSel) {
+    provSel.innerHTML = '<option value="">همه</option>' +
+      State.provinces.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    provSel.onchange = () => { refreshCounties(); renderUsersTable(); };
+  }
+  if (nameInput) nameInput.oninput = () => renderUsersTable();
+  if (cntySel) cntySel.onchange = () => renderUsersTable();
+  if (clearBtn) clearBtn.onclick = () => {
+    if (nameInput) nameInput.value = '';
+    if (provSel) provSel.value = '';
+    refreshCounties();
+    renderUsersTable();
+  };
 }
 
 function editUser(id) {
